@@ -1,6 +1,7 @@
 #include "font_loader.hpp"
 #include <fstream>
 #include <vector>
+#include <cmath>
 #include <algorithm>
 
 // stb_truetype integration:

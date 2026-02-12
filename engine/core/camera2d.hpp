@@ -2,6 +2,7 @@
 #include "../math/vec2.hpp"
 #include "../math/mat4.hpp"
 #include <cmath>
+#include <cstdlib>
 #include <algorithm>
 
 struct Camera2D {

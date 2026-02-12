@@ -17,5 +17,4 @@ target_include_directories(ergo_tests PRIVATE
 )
 
 # Register with CTest
-enable_testing()
 add_test(NAME ergo_tests COMMAND ergo_tests)
