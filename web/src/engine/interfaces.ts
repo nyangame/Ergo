@@ -50,6 +50,19 @@ export interface EngineContext {
     input: InputBackend;
 }
 
+// Shader composition concepts (matches C++ ShaderComposable / ShaderOptimizable)
+export interface ShaderComposable {
+    compile(): boolean;
+    vertexSource(): string;
+    fragmentSource(): string;
+    isCompiled(): boolean;
+}
+
+export interface ShaderOptimizable {
+    optimizationReport(): string;
+    isOptimized(): boolean;
+}
+
 // Re-export for convenience
 import { Transform2D } from '../math/transform.js';
 export { Transform2D };

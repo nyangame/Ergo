@@ -22,6 +22,11 @@ add_library(ergo_engine STATIC
     text/text_layout.cpp
     text/text_renderer.cpp
     text/rich_text.cpp
+
+    # Shader composition
+    shader/shader_library.cpp
+    shader/shader_compiler.cpp
+    shader/shader_optimizer.cpp
 )
 
 target_include_directories(ergo_engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
