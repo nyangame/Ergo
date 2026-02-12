@@ -125,3 +125,27 @@ template<typename T>
 concept CommandSubmittable = requires(T t, CommandBuffer& buf) {
     { t.record_commands(buf) } -> std::same_as<void>;
 };
+
+// ============================================================
+// Shader composition concepts
+// ============================================================
+
+// Forward declarations
+class ShaderGraph;
+class ShaderMaterial;
+
+// ShaderComposable: a material that can compile from a node graph
+template<typename T>
+concept ShaderComposable = requires(T t) {
+    { t.compile() } -> std::same_as<bool>;
+    { t.vertex_source() } -> std::convertible_to<std::string_view>;
+    { t.fragment_source() } -> std::convertible_to<std::string_view>;
+    { t.is_compiled() } -> std::same_as<bool>;
+};
+
+// ShaderOptimizable: can be optimized by the shader optimizer
+template<typename T>
+concept ShaderOptimizable = requires(T t) {
+    { t.optimization_report() } -> std::convertible_to<std::string>;
+    { t.is_optimized() } -> std::same_as<bool>;
+};
