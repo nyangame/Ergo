@@ -1,4 +1,4 @@
-add_library(ergo_engine STATIC
+set(ERGO_ENGINE_SOURCES
     # Core
     core/task_system.cpp
     core/log.cpp
@@ -48,17 +48,48 @@ add_library(ergo_engine STATIC
     # Debug
     debug/debug_draw.cpp
 
-    # Network
+    # Network (base sockets from core)
     net/socket.cpp
-    net/network_manager.cpp
 
     # ECS
     ecs/world.cpp
 )
 
+# Network module (POCO-backed, optional)
+if(ERGO_ENABLE_NETWORK)
+    list(APPEND ERGO_ENGINE_SOURCES
+        net/tcp_socket.cpp
+        net/udp_socket.cpp
+        net/http_client.cpp
+        net/network_manager.cpp
+    )
+endif()
+
+add_library(ergo_engine STATIC ${ERGO_ENGINE_SOURCES})
+
 target_include_directories(ergo_engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_compile_features(ergo_engine PUBLIC cxx_std_20)
 
-# Threading support (required for render pipeline + physics)
+# Threading support (required for render pipeline + physics + network)
 find_package(Threads REQUIRED)
 target_link_libraries(ergo_engine PUBLIC Threads::Threads)
+
+# Network configuration
+if(ERGO_ENABLE_NETWORK)
+    target_compile_definitions(ergo_engine PUBLIC ERGO_HAS_NETWORK=1)
+
+    if(ERGO_HAS_POCO)
+        # Link POCO libraries when available
+        target_link_libraries(ergo_engine PUBLIC
+            Poco::Foundation
+            Poco::Net
+            Poco::JSON
+        )
+        target_compile_definitions(ergo_engine PUBLIC ERGO_HAS_POCO=1)
+    else()
+        # POSIX socket fallback
+        target_compile_definitions(ergo_engine PUBLIC ERGO_HAS_POCO=0)
+    endif()
+else()
+    target_compile_definitions(ergo_engine PUBLIC ERGO_HAS_NETWORK=0 ERGO_HAS_POCO=0)
+endif()
