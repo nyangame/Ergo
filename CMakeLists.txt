@@ -34,15 +34,15 @@ if(ERGO_BUILD_EDITOR)
 endif()
 
 # -------------------------------------------------------
-# Sample Games (purged from default build)
-# -------------------------------------------------------
-# -------------------------------------------------------
 # Test Assembly: GUI-independent test executable
 # -------------------------------------------------------
 if(ERGO_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 
+# -------------------------------------------------------
+# Sample Games (purged from default build)
+# -------------------------------------------------------
 if(ERGO_BUILD_SAMPLES)
     # SampleGame (shooting) has been purged from the default build.
     # To build samples, set -DERGO_BUILD_SAMPLES=ON
