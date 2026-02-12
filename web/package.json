@@ -1,0 +1,14 @@
+{
+  "name": "ergo-web",
+  "version": "0.1.0",
+  "description": "Ergo game engine - Web (TypeScript/WebGPU) version",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "@webgpu/types": "^0.1.40"
+  }
+}
