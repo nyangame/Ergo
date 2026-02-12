@@ -17,6 +17,11 @@ add_library(ergo_engine STATIC
 
     # Resources
     resource/fbx_loader.cpp
+
+    # Text rendering
+    text/text_layout.cpp
+    text/text_renderer.cpp
+    text/rich_text.cpp
 )
 
 target_include_directories(ergo_engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)

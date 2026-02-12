@@ -4,6 +4,7 @@
 #include "../math/color.hpp"
 #include "../resource/texture_handle.hpp"
 #include <cstdint>
+#include <vector>
 #include <variant>
 
 // Render commands: recorded by game threads, consumed by render thread
@@ -60,6 +61,33 @@ struct RenderCmd_DrawDebugLine {
     Color color;
 };
 
+// SDF/MSDFテキスト描画コマンド (バッチ描画)
+// TextRenderer::build_batches() の出力をレンダーパイプラインに投入する
+struct TextBatchVertex {
+    float pos_x, pos_y, pos_z;
+    float uv_x, uv_y;
+    uint8_t r, g, b, a;
+};
+
+struct RenderCmd_DrawTextBatch {
+    Vec3f origin;
+    uint64_t font_atlas_texture = 0;  // アトラスページのテクスチャID
+    uint32_t render_mode = 0;         // FontRenderMode (SDF/MSDF等)
+    float sdf_pixel_range = 4.0f;     // SDF距離レンジ
+    // スタイルパラメータ (SDF/MSDFシェーダー用)
+    float outline_width = 0.0f;
+    Color outline_color{0, 0, 0, 255};
+    float shadow_offset_x = 0.0f;
+    float shadow_offset_y = 0.0f;
+    float shadow_softness = 0.0f;
+    Color shadow_color{0, 0, 0, 128};
+    float face_dilate = 0.0f;
+    float face_softness = 0.0f;
+    // 頂点データ
+    std::vector<TextBatchVertex> vertices;
+    std::vector<uint32_t> indices;
+};
+
 using RenderCommand = std::variant<
     RenderCmd_Clear,
     RenderCmd_SetViewProjection,
@@ -68,5 +96,6 @@ using RenderCommand = std::variant<
     RenderCmd_DrawCircle,
     RenderCmd_DrawSprite,
     RenderCmd_DrawText,
-    RenderCmd_DrawDebugLine
+    RenderCmd_DrawDebugLine,
+    RenderCmd_DrawTextBatch
 >;
