@@ -1,4 +1,5 @@
 #include "ui_manager.hpp"
+#include <algorithm>
 
 void UIManager::add_root(std::unique_ptr<UIElement> elem) {
     roots_.push_back(std::move(elem));

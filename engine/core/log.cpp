@@ -41,7 +41,11 @@ void log_impl(LogLevel level, const char* category, const char* fmt, va_list arg
 
     std::time_t now = std::time(nullptr);
     std::tm tm_buf;
+#ifdef _WIN32
+    localtime_s(&tm_buf, &now);
+#else
     localtime_r(&now, &tm_buf);
+#endif
 
     char time_str[32];
     std::strftime(time_str, sizeof(time_str), "%H:%M:%S", &tm_buf);

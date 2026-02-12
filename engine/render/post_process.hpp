@@ -2,6 +2,8 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <algorithm>
+#include <memory>
 
 // Post-process effect base
 struct PostProcessEffect {
