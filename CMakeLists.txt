@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Options
 option(ERGO_BUILD_SAMPLES "Build sample games" OFF)
 option(ERGO_BUILD_EDITOR "Build editor native library" OFF)
+option(ERGO_BUILD_TESTS "Build test assembly" ON)
 
 # -------------------------------------------------------
 # System Assembly: engine + system layers (static libs)
@@ -35,6 +36,13 @@ endif()
 # -------------------------------------------------------
 # Sample Games (purged from default build)
 # -------------------------------------------------------
+# -------------------------------------------------------
+# Test Assembly: GUI-independent test executable
+# -------------------------------------------------------
+if(ERGO_BUILD_TESTS)
+    add_subdirectory(tests)
+endif()
+
 if(ERGO_BUILD_SAMPLES)
     # SampleGame (shooting) has been purged from the default build.
     # To build samples, set -DERGO_BUILD_SAMPLES=ON
