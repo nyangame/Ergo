@@ -150,3 +150,15 @@ concept ShaderOptimizable = requires(T t) {
     { t.optimization_report() } -> std::convertible_to<std::string>;
     { t.is_optimized() } -> std::same_as<bool>;
 };
+
+// ============================================================
+// Network concepts (see engine/net/net_concepts.hpp for full set)
+// ============================================================
+
+// NetworkPollable: can be polled each frame for network events
+template<typename T>
+concept NetworkPollable = requires(T t) {
+    { t.poll() } -> std::same_as<void>;
+    { t.shutdown() } -> std::same_as<void>;
+    { t.is_active() } -> std::same_as<bool>;
+};
