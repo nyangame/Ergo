@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:conv="clr-namespace:Ergo.Editor.Converters"
+             x:Class="Ergo.Editor.App">
+    <Application.Resources>
+        <ResourceDictionary>
+            <!-- Dark theme colors for game editor -->
+            <Color x:Key="EditorBackground">#1E1E1E</Color>
+            <Color x:Key="EditorPanel">#252526</Color>
+            <Color x:Key="EditorBorder">#3C3C3C</Color>
+            <Color x:Key="EditorText">#CCCCCC</Color>
+            <Color x:Key="EditorAccent">#007ACC</Color>
+            <Color x:Key="EditorHeaderBg">#2D2D2D</Color>
+
+            <conv:InvertedBoolConverter x:Key="InvertedBoolConverter" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>
