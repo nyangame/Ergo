@@ -1,10 +1,16 @@
 add_library(ergo_engine STATIC
     # Core
     core/task_system.cpp
+    core/log.cpp
+    core/scene_manager.cpp
+    core/input_map.cpp
+    core/serialization.cpp
 
     # Physics (2D)
     physics/hit_test.cpp
     physics/physics_system.cpp
+    physics/raycast2d.cpp
+    physics/spatial_grid.cpp
 
     # Physics (3D rigid body)
     physics/collision3d.cpp
@@ -14,9 +20,13 @@ add_library(ergo_engine STATIC
 
     # Render pipeline
     render/render_pipeline.cpp
+    render/particle_system.cpp
 
     # Resources
     resource/fbx_loader.cpp
+    resource/image_loader.cpp
+    resource/font_loader.cpp
+    resource/resource_manager.cpp
 
     # Text rendering
     text/text_layout.cpp
@@ -27,6 +37,23 @@ add_library(ergo_engine STATIC
     shader/shader_library.cpp
     shader/shader_compiler.cpp
     shader/shader_optimizer.cpp
+
+    # Animation
+    animation/animation_player.cpp
+
+    # UI
+    ui/ui_manager.cpp
+    ui/ui_widgets.cpp
+
+    # Debug
+    debug/debug_draw.cpp
+
+    # Network
+    net/socket.cpp
+    net/network_manager.cpp
+
+    # ECS
+    ecs/world.cpp
 )
 
 target_include_directories(ergo_engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)

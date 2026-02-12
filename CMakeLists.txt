@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Options
 option(ERGO_BUILD_SAMPLES "Build sample games" OFF)
 option(ERGO_BUILD_EDITOR "Build editor native library" OFF)
+option(ERGO_BUILD_TESTS "Build unit tests" OFF)
 
 # -------------------------------------------------------
 # System Assembly: engine + system layers (static libs)
@@ -41,4 +42,11 @@ if(ERGO_BUILD_SAMPLES)
     if(EXISTS "${CMAKE_SOURCE_DIR}/samples/shooting/CMakeLists.txt")
         add_subdirectory(samples/shooting)
     endif()
+endif()
+
+# -------------------------------------------------------
+# Tests
+# -------------------------------------------------------
+if(ERGO_BUILD_TESTS)
+    add_subdirectory(tests)
 endif()
