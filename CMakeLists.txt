@@ -4,9 +4,18 @@ project(Ergo LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# MSVC-specific settings
+if(MSVC)
+    # Prevent windows.h from defining min/max macros
+    add_compile_definitions(NOMINMAX)
+    # Use standard-conforming preprocessor
+    add_compile_options(/Zc:preprocessor)
+endif()
+
 # Options
 option(ERGO_BUILD_SAMPLES "Build sample games" OFF)
 option(ERGO_BUILD_EDITOR "Build editor native library" OFF)
+option(ERGO_BUILD_TESTS "Build unit tests" OFF)
 
 # -------------------------------------------------------
 # System Assembly: engine + system layers (static libs)
@@ -41,4 +50,12 @@ if(ERGO_BUILD_SAMPLES)
     if(EXISTS "${CMAKE_SOURCE_DIR}/samples/shooting/CMakeLists.txt")
         add_subdirectory(samples/shooting)
     endif()
+endif()
+
+# -------------------------------------------------------
+# Tests
+# -------------------------------------------------------
+if(ERGO_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
 endif()
