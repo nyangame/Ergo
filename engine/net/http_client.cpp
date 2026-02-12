@@ -71,13 +71,27 @@ struct HttpClient::Impl {
 
 #else
 // ============================================================
-// POSIX HTTP backend (minimal HTTP/1.1 client)
+// Native HTTP backend (minimal HTTP/1.1 client, POSIX / Winsock)
 // ============================================================
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#pragma comment(lib, "ws2_32.lib")
+#define ERGO_CLOSE_SOCKET closesocket
+#define MSG_NOSIGNAL 0
+using ergo_ssize_t = ptrdiff_t;
+#else
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
+#define ERGO_CLOSE_SOCKET ::close
+using ergo_ssize_t = ssize_t;
+#endif
 #include <cerrno>
 #include <cstring>
 #include <string>
@@ -130,11 +144,19 @@ struct HttpClient::Impl {
         }
 
         // Set timeout
+#ifdef _WIN32
+        DWORD tv = static_cast<DWORD>(timeout_ms);
+        ::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO,
+                     reinterpret_cast<const char*>(&tv), sizeof(tv));
+        ::setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO,
+                     reinterpret_cast<const char*>(&tv), sizeof(tv));
+#else
         struct timeval tv;
         tv.tv_sec = timeout_ms / 1000;
         tv.tv_usec = (timeout_ms % 1000) * 1000;
         ::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
         ::setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+#endif
 
         // Resolve and connect
         struct addrinfo hints{}, *res = nullptr;
@@ -142,14 +164,14 @@ struct HttpClient::Impl {
         hints.ai_socktype = SOCK_STREAM;
         std::string port_str = std::to_string(parsed.port);
         if (::getaddrinfo(parsed.host.c_str(), port_str.c_str(), &hints, &res) != 0 || !res) {
-            ::close(fd);
+            ERGO_CLOSE_SOCKET(fd);
             result.status_code = -1;
             result.reason = "DNS resolution failed";
             return result;
         }
-        if (::connect(fd, res->ai_addr, res->ai_addrlen) < 0) {
+        if (::connect(fd, res->ai_addr, static_cast<int>(res->ai_addrlen)) < 0) {
             ::freeaddrinfo(res);
-            ::close(fd);
+            ERGO_CLOSE_SOCKET(fd);
             result.status_code = -1;
             result.reason = "connect() failed";
             return result;
@@ -170,16 +192,17 @@ struct HttpClient::Impl {
         if (!body.empty()) req << body;
 
         std::string request_str = req.str();
-        ::send(fd, request_str.data(), request_str.size(), MSG_NOSIGNAL);
+        ::send(fd, request_str.data(), static_cast<int>(request_str.size()),
+               MSG_NOSIGNAL);
 
         // Read response
         std::string response_data;
         char buf[4096];
-        ssize_t n;
+        ergo_ssize_t n;
         while ((n = ::recv(fd, buf, sizeof(buf), 0)) > 0) {
             response_data.append(buf, static_cast<size_t>(n));
         }
-        ::close(fd);
+        ERGO_CLOSE_SOCKET(fd);
 
         // Parse response
         auto header_end = response_data.find("\r\n\r\n");
