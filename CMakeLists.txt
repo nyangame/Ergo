@@ -26,9 +26,6 @@ add_subdirectory(system)
 add_subdirectory(runtime)
 
 # -------------------------------------------------------
-# Sample Games (purged from default build)
-# -------------------------------------------------------
-# -------------------------------------------------------
 # Editor Assembly: native shared library for MAUI editor
 # -------------------------------------------------------
 if(ERGO_BUILD_EDITOR)

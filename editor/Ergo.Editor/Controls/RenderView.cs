@@ -4,11 +4,22 @@ namespace Ergo.Editor.Controls;
 
 /// <summary>
 /// Base view that hosts a Vulkan rendering surface via the native engine.
-/// Platform-specific handlers create a native child window and pass its
-/// handle to the engine, which creates a VkSurfaceKHR for rendering.
 ///
-/// SceneView and GameView derive from this, setting their respective
-/// render modes and camera behaviors.
+/// Lifecycle:
+///   1. MAUI lays out this view and the handler creates a platform element.
+///   2. When the platform element is loaded, the handler creates a Win32
+///      child HWND and calls <see cref="EngineInterop.CreateRenderTarget"/>
+///      to bind a VkSurfaceKHR to it.
+///   3. <see cref="OnNativeSurfaceCreated"/> fires so subclasses can set
+///      their initial camera.
+///   4. The page's render-loop timer calls <see cref="RenderFrame"/> at
+///      ~60 Hz, which invokes <see cref="OnBeforeRender"/> (camera/input
+///      update) followed by the native render call.
+///   5. On resize, <see cref="OnNativeSurfaceResized"/> is called; the
+///      native side recreates the swapchain with the new extent.
+///   6. On unload, the handler destroys the render target and child HWND.
+///
+/// SceneView and GameView derive from this.
 /// </summary>
 public class RenderView : View
 {
@@ -36,15 +47,22 @@ public class RenderView : View
     internal ErgoRenderTargetHandle RenderTargetHandle { get; set; }
 
     /// <summary>
-    /// Called by the handler once the native surface is created.
-    /// Subclasses can override to set up initial camera, etc.
+    /// True once the native surface has been created and is ready
+    /// to accept render calls.
+    /// </summary>
+    public bool IsSurfaceReady => RenderTargetHandle.IsValid;
+
+    /// <summary>
+    /// Fired once the native surface is ready. Subclasses should set
+    /// their initial camera here.
     /// </summary>
     internal virtual void OnNativeSurfaceCreated()
     {
     }
 
     /// <summary>
-    /// Called by the handler when the native surface is resized.
+    /// Fired when the hosting element is resized. Forwards the new
+    /// size to the native swapchain so it can be recreated.
     /// </summary>
     internal virtual void OnNativeSurfaceResized(uint width, uint height)
     {
@@ -55,15 +73,16 @@ public class RenderView : View
     }
 
     /// <summary>
-    /// Called each frame by the render loop. Subclasses override to
-    /// update camera, input, etc. before the frame is rendered.
+    /// Called each frame before the native render call. Subclasses
+    /// override to update camera, input state, etc.
     /// </summary>
     internal virtual void OnBeforeRender(float dt)
     {
     }
 
     /// <summary>
-    /// Render one frame to this view's render target.
+    /// Perform one full render frame: pre-render update → native draw
+    /// → present. Called by the page's render-loop timer.
     /// </summary>
     public void RenderFrame(float dt)
     {

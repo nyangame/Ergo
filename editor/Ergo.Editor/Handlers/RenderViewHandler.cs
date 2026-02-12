@@ -1,23 +1,26 @@
 using Ergo.Editor.Controls;
 using Ergo.Editor.Interop;
+using Microsoft.Maui.Handlers;
 
 #if WINDOWS
-using Microsoft.Maui.Handlers;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using WinRT.Interop;
 #endif
 
 namespace Ergo.Editor.Handlers;
 
 /// <summary>
-/// Cross-platform handler for RenderView.
+/// Platform handler for <see cref="RenderView"/>.
 ///
-/// On Windows, it creates a SwapChainPanel (or a native HWND child) and
-/// passes the window handle to the engine so Vulkan can create a surface.
+/// On Windows the handler creates a WinUI <see cref="Border"/> as the
+/// host element. Once the element is loaded and has a valid HWND tree,
+/// it creates a Win32 child window via <see cref="Win32.CreateRenderChildWindow"/>
+/// and passes that HWND to the native engine so a VkSurfaceKHR can be
+/// created for Vulkan rendering.
 /// </summary>
 public partial class RenderViewHandler : ViewHandler<RenderView,
 #if WINDOWS
-    Panel
+    Border
 #else
     object
 #endif
@@ -35,88 +38,128 @@ public partial class RenderViewHandler : ViewHandler<RenderView,
 
     private static void MapRenderMode(RenderViewHandler handler, RenderView view)
     {
-        // Render mode is read when creating the render target.
-        // Changing at runtime would require recreating the target.
+        // Mode is set at render-target creation time.
     }
 
 #if WINDOWS
-    protected override Panel CreatePlatformView()
+
+    private IntPtr _childHwnd;
+
+    protected override Border CreatePlatformView()
     {
-        // Use a simple Panel as the host. The render target is created
-        // once the panel has a valid HWND.
-        var panel = new Canvas();
-        return panel;
+        return new Border
+        {
+            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                Microsoft.UI.Colors.Black),
+        };
     }
 
-    protected override void ConnectHandler(Panel platformView)
+    protected override void ConnectHandler(Border platformView)
     {
         base.ConnectHandler(platformView);
-
-        // Defer render target creation until the panel is loaded and has a size.
-        platformView.Loaded += OnPanelLoaded;
-        platformView.SizeChanged += OnPanelSizeChanged;
+        platformView.Loaded += OnHostLoaded;
+        platformView.SizeChanged += OnHostSizeChanged;
+        platformView.Unloaded += OnHostUnloaded;
     }
 
-    protected override void DisconnectHandler(Panel platformView)
+    protected override void DisconnectHandler(Border platformView)
     {
-        platformView.Loaded -= OnPanelLoaded;
-        platformView.SizeChanged -= OnPanelSizeChanged;
+        platformView.Loaded -= OnHostLoaded;
+        platformView.SizeChanged -= OnHostSizeChanged;
+        platformView.Unloaded -= OnHostUnloaded;
+        DestroyRenderTarget();
+        base.DisconnectHandler(platformView);
+    }
 
-        if (VirtualView.RenderTargetHandle.IsValid)
+    // ---------------------------------------------------------------
+    // Event handlers
+    // ---------------------------------------------------------------
+
+    private void OnHostLoaded(object sender, RoutedEventArgs e)
+    {
+        EnsureRenderTarget();
+    }
+
+    private void OnHostSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var w = (int)Math.Max(e.NewSize.Width, 1);
+        var h = (int)Math.Max(e.NewSize.Height, 1);
+
+        if (_childHwnd != IntPtr.Zero)
+        {
+            Win32.MoveWindow(_childHwnd, 0, 0, w, h, true);
+        }
+
+        VirtualView?.OnNativeSurfaceResized((uint)w, (uint)h);
+    }
+
+    private void OnHostUnloaded(object sender, RoutedEventArgs e)
+    {
+        DestroyRenderTarget();
+    }
+
+    // ---------------------------------------------------------------
+    // Render target lifecycle
+    // ---------------------------------------------------------------
+
+    private void EnsureRenderTarget()
+    {
+        if (_childHwnd != IntPtr.Zero) return;
+        if (PlatformView?.XamlRoot?.Content == null) return;
+        if (VirtualView == null) return;
+
+        // Get the top-level HWND from the MAUI window
+        var windowHwnd = GetHostWindowHandle();
+        if (windowHwnd == IntPtr.Zero) return;
+
+        var w = (int)Math.Max(PlatformView.ActualWidth, 1);
+        var h = (int)Math.Max(PlatformView.ActualHeight, 1);
+
+        // Create a Win32 child window parented to the top-level HWND.
+        // Vulkan creates its VkSurfaceKHR from this child HWND.
+        _childHwnd = Win32.CreateRenderChildWindow(windowHwnd, w, h);
+        if (_childHwnd == IntPtr.Zero) return;
+
+        var handle = EngineInterop.CreateRenderTarget(
+            _childHwnd, (uint)w, (uint)h, VirtualView.RenderMode);
+
+        VirtualView.RenderTargetHandle = handle;
+        VirtualView.OnNativeSurfaceCreated();
+    }
+
+    private void DestroyRenderTarget()
+    {
+        if (VirtualView?.RenderTargetHandle.IsValid == true)
         {
             EngineInterop.DestroyRenderTarget(VirtualView.RenderTargetHandle);
             VirtualView.RenderTargetHandle = default;
         }
 
-        base.DisconnectHandler(platformView);
-    }
-
-    private void OnPanelLoaded(object sender, Microsoft.UI.Xaml.RoutedEventArgs e)
-    {
-        CreateRenderTarget();
-    }
-
-    private void OnPanelSizeChanged(object sender, Microsoft.UI.Xaml.SizeChangedEventArgs e)
-    {
-        var w = (uint)e.NewSize.Width;
-        var h = (uint)e.NewSize.Height;
-        if (w > 0 && h > 0)
+        if (_childHwnd != IntPtr.Zero)
         {
-            VirtualView?.OnNativeSurfaceResized(w, h);
+            Win32.DestroyWindow(_childHwnd);
+            _childHwnd = IntPtr.Zero;
         }
     }
 
-    private void CreateRenderTarget()
+    private IntPtr GetHostWindowHandle()
     {
-        if (PlatformView == null || VirtualView == null) return;
-
-        var hwnd = WindowNative.GetWindowHandle(
-            PlatformView.XamlRoot?.ContentIslandEnvironment?.AppWindowId
-            ?? default);
-
-        // Fallback: get HWND from the hosting window
-        if (hwnd == IntPtr.Zero)
+        // Walk the MAUI application windows to find the WinUI Window,
+        // then retrieve its Win32 HWND.
+        if (Application.Current is not null)
         {
-            var window = PlatformView.XamlRoot?.Content?.XamlRoot;
-            // In MAUI, we get the HWND from the MauiWinUIWindow
-            // This is a simplified approach
+            foreach (var window in Application.Current.Windows)
+            {
+                if (window.Handler?.PlatformView is Microsoft.UI.Xaml.Window winuiWindow)
+                {
+                    return WinRT.Interop.WindowNative.GetWindowHandle(winuiWindow);
+                }
+            }
         }
-
-        var w = (uint)Math.Max(PlatformView.ActualWidth, 1);
-        var h = (uint)Math.Max(PlatformView.ActualHeight, 1);
-
-        var handle = EngineInterop.CreateRenderTarget(
-            hwnd, w, h, VirtualView.RenderMode);
-
-        VirtualView.RenderTargetHandle = handle;
-        VirtualView.OnNativeSurfaceCreated();
+        return IntPtr.Zero;
     }
+
 #else
-    protected override object CreatePlatformView()
-    {
-        // Stub for non-Windows platforms.
-        // macOS/Linux implementations would go here.
-        return new object();
-    }
+    protected override object CreatePlatformView() => new object();
 #endif
 }
