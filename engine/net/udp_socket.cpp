@@ -73,14 +73,31 @@ bool UdpSocket::is_bound() const { return impl_->bound; }
 
 #else
 // ============================================================
-// POSIX socket backend
+// Native socket backend (POSIX / Winsock)
 // ============================================================
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#pragma comment(lib, "ws2_32.lib")
+#define ERGO_CLOSE_SOCKET closesocket
+using ergo_ssize_t = ptrdiff_t;
+inline int ergo_socket_errno() { return WSAGetLastError(); }
+inline bool ergo_is_wouldblock(int e) { return e == WSAEWOULDBLOCK; }
+#else
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
 #include <fcntl.h>
+#define ERGO_CLOSE_SOCKET ::close
+using ergo_ssize_t = ssize_t;
+inline int ergo_socket_errno() { return errno; }
+inline bool ergo_is_wouldblock(int e) { return e == EAGAIN || e == EWOULDBLOCK; }
+#endif
 #include <cerrno>
 #include <cstring>
 
@@ -134,8 +151,11 @@ int UdpSocket::send_to(const uint8_t* data, size_t len,
         ::freeaddrinfo(res);
     }
 
-    ssize_t n = ::sendto(impl_->fd, data, len, 0,
-                          reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
+    ergo_ssize_t n = ::sendto(impl_->fd,
+                              reinterpret_cast<const char*>(data),
+                              static_cast<int>(len), 0,
+                              reinterpret_cast<struct sockaddr*>(&addr),
+                              sizeof(addr));
     return n < 0 ? -1 : static_cast<int>(n);
 }
 
@@ -143,10 +163,13 @@ int UdpSocket::recv_from(uint8_t* buffer, size_t max_len,
                           std::string& out_host, uint16_t& out_port) {
     struct sockaddr_in sender{};
     socklen_t sender_len = sizeof(sender);
-    ssize_t n = ::recvfrom(impl_->fd, buffer, max_len, 0,
-                            reinterpret_cast<struct sockaddr*>(&sender), &sender_len);
+    ergo_ssize_t n = ::recvfrom(impl_->fd,
+                                reinterpret_cast<char*>(buffer),
+                                static_cast<int>(max_len), 0,
+                                reinterpret_cast<struct sockaddr*>(&sender),
+                                &sender_len);
     if (n < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) return 0;
+        if (ergo_is_wouldblock(ergo_socket_errno())) return 0;
         return -1;
     }
     char ip_buf[INET_ADDRSTRLEN]{};
@@ -158,24 +181,35 @@ int UdpSocket::recv_from(uint8_t* buffer, size_t max_len,
 
 void UdpSocket::set_non_blocking(bool enabled) {
     if (impl_->fd < 0) return;
+#ifdef _WIN32
+    u_long mode = enabled ? 1 : 0;
+    ::ioctlsocket(impl_->fd, FIONBIO, &mode);
+#else
     int flags = ::fcntl(impl_->fd, F_GETFL, 0);
     if (enabled)
         ::fcntl(impl_->fd, F_SETFL, flags | O_NONBLOCK);
     else
         ::fcntl(impl_->fd, F_SETFL, flags & ~O_NONBLOCK);
+#endif
 }
 
 void UdpSocket::set_timeout(int timeout_ms) {
     if (impl_->fd < 0) return;
+#ifdef _WIN32
+    DWORD tv = static_cast<DWORD>(timeout_ms);
+    ::setsockopt(impl_->fd, SOL_SOCKET, SO_RCVTIMEO,
+                 reinterpret_cast<const char*>(&tv), sizeof(tv));
+#else
     struct timeval tv;
     tv.tv_sec = timeout_ms / 1000;
     tv.tv_usec = (timeout_ms % 1000) * 1000;
     ::setsockopt(impl_->fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+#endif
 }
 
 void UdpSocket::close() {
     if (impl_->fd >= 0) {
-        ::close(impl_->fd);
+        ERGO_CLOSE_SOCKET(impl_->fd);
         impl_->fd = -1;
     }
     impl_->bound = false;
