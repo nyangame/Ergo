@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Ergo.Editor.ViewModels"
+             x:Class="Ergo.Editor.Views.ComponentView"
+             x:DataType="vm:ComponentViewModel">
+
+    <ScrollView BackgroundColor="{StaticResource EditorPanel}">
+        <VerticalStackLayout Padding="8" Spacing="8">
+
+            <!-- Object Name Header -->
+            <Border BackgroundColor="{StaticResource EditorHeaderBg}"
+                    Padding="8"
+                    StrokeShape="RoundRectangle 4"
+                    Stroke="{StaticResource EditorBorder}">
+                <Label Text="{Binding ObjectName}"
+                       TextColor="{StaticResource EditorText}"
+                       FontSize="16"
+                       FontAttributes="Bold" />
+            </Border>
+
+            <!-- Transform Section -->
+            <Border BackgroundColor="{StaticResource EditorHeaderBg}"
+                    Padding="8"
+                    StrokeShape="RoundRectangle 4"
+                    Stroke="{StaticResource EditorBorder}"
+                    IsVisible="{Binding HasSelection}">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Transform"
+                           TextColor="{StaticResource EditorAccent}"
+                           FontAttributes="Bold" />
+
+                    <!-- Position -->
+                    <Label Text="Position" TextColor="{StaticResource EditorText}" FontSize="12" />
+                    <HorizontalStackLayout Spacing="4">
+                        <Label Text="X" TextColor="#E06060" VerticalOptions="Center" WidthRequest="16" />
+                        <Entry Text="{Binding PosX, StringFormat='{0:F3}'}"
+                               TextColor="{StaticResource EditorText}"
+                               BackgroundColor="{StaticResource EditorBackground}"
+                               WidthRequest="80"
+                               Keyboard="Numeric" />
+                        <Label Text="Y" TextColor="#60E060" VerticalOptions="Center" WidthRequest="16" />
+                        <Entry Text="{Binding PosY, StringFormat='{0:F3}'}"
+                               TextColor="{StaticResource EditorText}"
+                               BackgroundColor="{StaticResource EditorBackground}"
+                               WidthRequest="80"
+                               Keyboard="Numeric" />
+                        <Label Text="Z" TextColor="#6060E0" VerticalOptions="Center" WidthRequest="16" />
+                        <Entry Text="{Binding PosZ, StringFormat='{0:F3}'}"
+                               TextColor="{StaticResource EditorText}"
+                               BackgroundColor="{StaticResource EditorBackground}"
+                               WidthRequest="80"
+                               Keyboard="Numeric" />
+                    </HorizontalStackLayout>
+
+                    <!-- Scale -->
+                    <Label Text="Scale" TextColor="{StaticResource EditorText}" FontSize="12" />
+                    <HorizontalStackLayout Spacing="4">
+                        <Label Text="X" TextColor="#E06060" VerticalOptions="Center" WidthRequest="16" />
+                        <Entry Text="{Binding ScaleX, StringFormat='{0:F3}'}"
+                               TextColor="{StaticResource EditorText}"
+                               BackgroundColor="{StaticResource EditorBackground}"
+                               WidthRequest="80"
+                               Keyboard="Numeric" />
+                        <Label Text="Y" TextColor="#60E060" VerticalOptions="Center" WidthRequest="16" />
+                        <Entry Text="{Binding ScaleY, StringFormat='{0:F3}'}"
+                               TextColor="{StaticResource EditorText}"
+                               BackgroundColor="{StaticResource EditorBackground}"
+                               WidthRequest="80"
+                               Keyboard="Numeric" />
+                        <Label Text="Z" TextColor="#6060E0" VerticalOptions="Center" WidthRequest="16" />
+                        <Entry Text="{Binding ScaleZ, StringFormat='{0:F3}'}"
+                               TextColor="{StaticResource EditorText}"
+                               BackgroundColor="{StaticResource EditorBackground}"
+                               WidthRequest="80"
+                               Keyboard="Numeric" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- Component List -->
+            <VerticalStackLayout BindableLayout.ItemsSource="{Binding Components}"
+                                 Spacing="4"
+                                 IsVisible="{Binding HasSelection}">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ComponentEntry">
+                        <Border BackgroundColor="{StaticResource EditorHeaderBg}"
+                                Padding="8"
+                                StrokeShape="RoundRectangle 4"
+                                Stroke="{StaticResource EditorBorder}">
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="{Binding Name}"
+                                       TextColor="{StaticResource EditorAccent}"
+                                       FontAttributes="Bold" />
+                                <Label Text="{Binding TypeName}"
+                                       TextColor="{StaticResource EditorText}"
+                                       FontSize="11"
+                                       Opacity="0.6" />
+                                <!-- Property editors would be templated here -->
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </VerticalStackLayout>
+
+            <!-- Empty state -->
+            <Label Text="Select an object to inspect its components."
+                   TextColor="{StaticResource EditorText}"
+                   Opacity="0.5"
+                   HorizontalOptions="Center"
+                   IsVisible="{Binding HasSelection, Converter={StaticResource InvertedBoolConverter}}" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentView>

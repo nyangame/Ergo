@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:Ergo.Editor.Views"
+             xmlns:controls="clr-namespace:Ergo.Editor.Controls"
+             xmlns:vm="clr-namespace:Ergo.Editor.ViewModels"
+             x:Class="Ergo.Editor.Views.MainEditorPage"
+             x:DataType="vm:MainEditorViewModel"
+             BackgroundColor="{StaticResource EditorBackground}">
+
+    <Grid RowDefinitions="Auto,*" ColumnDefinitions="220,*,300">
+
+        <!-- ============================================================ -->
+        <!-- Top toolbar (spans all columns) -->
+        <!-- ============================================================ -->
+        <Border Grid.Row="0" Grid.ColumnSpan="3"
+                BackgroundColor="{StaticResource EditorHeaderBg}"
+                Padding="8,4"
+                StrokeThickness="0">
+            <HorizontalStackLayout Spacing="8" HorizontalOptions="Center">
+                <Button Text="Play"
+                        IsEnabled="{Binding CanPlay}"
+                        Clicked="OnPlayClicked"
+                        BackgroundColor="{StaticResource EditorAccent}"
+                        TextColor="White"
+                        WidthRequest="80"
+                        HeightRequest="32" />
+                <Button Text="Pause"
+                        IsEnabled="{Binding IsPlaying}"
+                        Clicked="OnPauseClicked"
+                        BackgroundColor="{StaticResource EditorPanel}"
+                        TextColor="{StaticResource EditorText}"
+                        WidthRequest="80"
+                        HeightRequest="32" />
+                <Button Text="Stop"
+                        IsEnabled="{Binding CanStop}"
+                        Clicked="OnStopClicked"
+                        BackgroundColor="#C04040"
+                        TextColor="White"
+                        WidthRequest="80"
+                        HeightRequest="32" />
+            </HorizontalStackLayout>
+        </Border>
+
+        <!-- ============================================================ -->
+        <!-- Left panel: Scene hierarchy -->
+        <!-- ============================================================ -->
+        <Border Grid.Row="1" Grid.Column="0"
+                BackgroundColor="{StaticResource EditorPanel}"
+                Stroke="{StaticResource EditorBorder}"
+                StrokeThickness="1"
+                Margin="0,0,1,0">
+            <Grid RowDefinitions="Auto,*">
+                <Label Grid.Row="0"
+                       Text="Hierarchy"
+                       TextColor="{StaticResource EditorText}"
+                       FontAttributes="Bold"
+                       Padding="8,6" />
+                <CollectionView Grid.Row="1"
+                                ItemsSource="{Binding SceneObjects}"
+                                SelectionMode="Single"
+                                SelectionChanged="OnHierarchySelectionChanged">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:SceneObjectEntry">
+                            <Label Text="{Binding Name}"
+                                   TextColor="{StaticResource EditorText}"
+                                   Padding="12,4"
+                                   FontSize="13" />
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Grid>
+        </Border>
+
+        <!-- ============================================================ -->
+        <!-- Center: Scene view (top) / Game view (bottom) -->
+        <!-- ============================================================ -->
+        <Grid Grid.Row="1" Grid.Column="1"
+              RowDefinitions="*,Auto,*"
+              Margin="1,0,1,0">
+
+            <!-- Scene View -->
+            <Grid Grid.Row="0">
+                <controls:SceneView x:Name="SceneViewControl" />
+                <Label Text="Scene"
+                       TextColor="{StaticResource EditorText}"
+                       Opacity="0.7"
+                       Padding="8,4"
+                       FontSize="11"
+                       VerticalOptions="Start"
+                       HorizontalOptions="Start" />
+            </Grid>
+
+            <!-- Splitter -->
+            <BoxView Grid.Row="1"
+                     HeightRequest="3"
+                     BackgroundColor="{StaticResource EditorBorder}" />
+
+            <!-- Game View -->
+            <Grid Grid.Row="2">
+                <controls:GameView x:Name="GameViewControl" />
+                <Label Text="Game"
+                       TextColor="{StaticResource EditorText}"
+                       Opacity="0.7"
+                       Padding="8,4"
+                       FontSize="11"
+                       VerticalOptions="Start"
+                       HorizontalOptions="Start" />
+            </Grid>
+        </Grid>
+
+        <!-- ============================================================ -->
+        <!-- Right panel: Component inspector -->
+        <!-- ============================================================ -->
+        <Border Grid.Row="1" Grid.Column="2"
+                BackgroundColor="{StaticResource EditorPanel}"
+                Stroke="{StaticResource EditorBorder}"
+                StrokeThickness="1"
+                Margin="1,0,0,0">
+            <Grid RowDefinitions="Auto,*">
+                <Label Grid.Row="0"
+                       Text="Inspector"
+                       TextColor="{StaticResource EditorText}"
+                       FontAttributes="Bold"
+                       Padding="8,6" />
+                <views:ComponentView Grid.Row="1"
+                                     x:Name="ComponentViewControl" />
+            </Grid>
+        </Border>
+
+    </Grid>
+
+</ContentPage>
