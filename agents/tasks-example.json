@@ -1,0 +1,27 @@
+[
+  {
+    "agent": "engine-core",
+    "task": "task_system.hpp のタスク優先度スケジューリングを実装する。Priority enum (High, Normal, Low) を追加し、update ループで優先度順に処理されるようにする。",
+    "maxTurns": 20
+  },
+  {
+    "agent": "engine-physics",
+    "task": "physics_system.hpp にグリッドベースのブロードフェーズ衝突判定を実装する。空間をグリッドに分割し、同一セルまたは隣接セル内のオブジェクトのみナローフェーズに進む。",
+    "maxTurns": 25
+  },
+  {
+    "agent": "engine-render",
+    "task": "render_pipeline.hpp にスプライトバッチ描画を実装する。同一テクスチャのスプライトを1回のドローコールでまとめて描画できるようにする。",
+    "maxTurns": 25
+  },
+  {
+    "agent": "web-port",
+    "task": "web/src/renderer/ の WebGPU レンダラーにテクスチャサポートを追加する。画像ファイルの読み込み、GPUTexture 生成、バインドグループ設定を実装する。",
+    "maxTurns": 20
+  },
+  {
+    "agent": "code-reviewer",
+    "task": "engine/ ディレクトリ全体のコードを DESIGN.md のコーディング規約に照らしてレビューする。命名規約、concept の使用、継承禁止ルールの遵守を確認する。",
+    "maxTurns": 15
+  }
+]
