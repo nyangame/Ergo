@@ -1,4 +1,4 @@
-find_package(Vulkan REQUIRED)
+find_package(Vulkan QUIET)
 
 add_library(ergo_system STATIC
     renderer/vulkan/vk_renderer.cpp
@@ -9,5 +9,13 @@ add_library(ergo_system STATIC
     window/desktop_window.cpp
 )
 
-target_link_libraries(ergo_system PUBLIC Vulkan::Vulkan ergo_engine)
+target_link_libraries(ergo_system PUBLIC ergo_engine)
 target_include_directories(ergo_system PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+
+if(Vulkan_FOUND)
+    target_link_libraries(ergo_system PUBLIC Vulkan::Vulkan)
+    target_compile_definitions(ergo_system PUBLIC ERGO_HAS_VULKAN=1)
+else()
+    message(STATUS "[Ergo] Vulkan not found - building with stub renderer")
+    target_compile_definitions(ergo_system PUBLIC ERGO_HAS_VULKAN=0)
+endif()
