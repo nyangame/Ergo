@@ -1,13 +1,17 @@
 #include "system/platform.hpp"
 #include "engine/core/task_system.hpp"
 #include "engine/physics/physics_system.hpp"
+#include "engine/physics/rigid_body_world.hpp"
+#include "engine/render/render_pipeline.hpp"
 #include "runtime/engine_context.hpp"
 #include "runtime/dll_loader.hpp"
 #include <chrono>
 #include <cstdio>
 
 int main(int argc, char** argv) {
-    // 1. Platform initialization
+    // -------------------------------------------------------
+    // 1. Platform initialization (System Assembly)
+    // -------------------------------------------------------
     ergo::PlatformWindow window;
     if (!window.create(800, 600, "Ergo Engine")) {
         std::fprintf(stderr, "[Ergo] Failed to create window\n");
@@ -22,12 +26,22 @@ int main(int argc, char** argv) {
 
     ergo::PlatformInput input;
 
-    // 2. Engine systems (g_physics is an inline global in physics_system.hpp)
+    // -------------------------------------------------------
+    // 2. Engine systems
+    // -------------------------------------------------------
+    // g_physics (2D) is an inline global in physics_system.hpp
+    // g_rigid_body_world (3D) is an inline global in rigid_body_world.hpp
 
-    // 3. Task manager
+    // Render pipeline with multi-CPU worker threads
+    RenderPipeline render_pipeline;
+    render_pipeline.initialize(0);  // 0 = auto-detect thread count
+
+    // Task manager
     TaskManager task_mgr;
 
-    // 4. Build EngineContext & load game DLL
+    // -------------------------------------------------------
+    // 3. Application Assembly: load game DLL
+    // -------------------------------------------------------
     auto engine_api = build_engine_api(renderer, input);
 
     const char* dll_path = (argc > 1) ? argv[1] : "libshooting_game.so";
@@ -38,7 +52,9 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "[Ergo] Running without game DLL\n");
     }
 
-    // 5. Main loop (corresponds to CppSampleGame's while loop)
+    // -------------------------------------------------------
+    // 4. Main loop
+    // -------------------------------------------------------
     auto last_time = std::chrono::high_resolution_clock::now();
 
     while (!window.should_close()) {
@@ -46,40 +62,46 @@ int main(int argc, char** argv) {
         float dt = std::chrono::duration<float>(now - last_time).count();
         last_time = now;
 
-        // Event processing
+        // --- Event processing ---
         window.poll_events();
         input.poll_events();
 
-        // DESTROY phase (CppSampleGame: TaskManager::Run(RUN_TYPE::DESTROY))
+        // --- DESTROY phase: remove dead tasks ---
         task_mgr.run(RunPhase::Destroy, dt);
 
-        // PHYSICS phase (CppSampleGame: TaskManager::Run(RUN_TYPE::PHYSICS))
+        // --- PHYSICS phase: task physics + 2D collisions + 3D rigid body ---
         task_mgr.run(RunPhase::Physics, dt);
+        g_physics.run();
+        g_rigid_body_world.step(dt);
 
-        // UPDATE phase (CppSampleGame: TaskManager::Run(RUN_TYPE::DO))
+        // --- UPDATE phase: task updates + game update ---
         task_mgr.run(RunPhase::Update, dt);
         if (game.valid()) {
             game.callbacks->on_update(dt);
         }
 
-        // Collision detection (CppSampleGame: SysPhysics::Run())
-        g_physics.run();
-
-        // DRAW phase (CppSampleGame: TaskManager::Run(RUN_TYPE::DRAW))
+        // --- DRAW phase: render pipeline ---
+        render_pipeline.begin_frame();
         renderer.begin_frame();
+
         auto* ctx = renderer.context();
         task_mgr.run(RunPhase::Draw, dt, ctx);
         if (game.valid()) {
             game.callbacks->on_draw();
         }
+
+        render_pipeline.end_frame();
         renderer.end_frame();
     }
 
-    // 6. Shutdown (CppSampleGame: SysPhysics::Release(), TaskManager::Release())
+    // -------------------------------------------------------
+    // 5. Shutdown
+    // -------------------------------------------------------
     if (game.valid()) {
         game.callbacks->on_shutdown();
     }
     unload_game_dll(game);
+    render_pipeline.shutdown();
     renderer.shutdown();
 
     return 0;

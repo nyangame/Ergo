@@ -6,10 +6,16 @@
 
 // Forward declarations
 struct Transform2D;
+struct Transform3D;
 struct Vec2f;
+struct Vec3f;
 struct RenderContext;
+struct CommandBuffer;
 
-// --- Lifecycle ---
+// ============================================================
+// Lifecycle concepts
+// ============================================================
+
 template<typename T>
 concept Startable = requires(T t) {
     { t.start() } -> std::same_as<void>;
@@ -30,11 +36,43 @@ concept Releasable = requires(T t) {
     { t.release() } -> std::same_as<void>;
 };
 
-// --- Task (CppSampleGame TaskBase equivalent) ---
+// ============================================================
+// Task concept (enforced at registration)
+// ============================================================
+
 template<typename T>
 concept TaskLike = Startable<T> && Updatable<T> && Releasable<T>;
 
-// --- GameObject (CppSampleGame IGameObject equivalent) ---
+// ============================================================
+// Physics concepts
+// ============================================================
+
+// PhysicsSteppable: a physics component that can be stepped each frame
+template<typename T>
+concept PhysicsSteppable = requires(T t, float dt) {
+    { t.start() } -> std::same_as<void>;
+    { t.update(dt) } -> std::same_as<void>;
+    { t.release() } -> std::same_as<void>;
+};
+
+// PhysicsBodyProvider: provides access to physics bodies by ID
+template<typename T>
+concept PhysicsBodyProvider = requires(T t, uint64_t id) {
+    { t.body_count() } -> std::convertible_to<size_t>;
+    { t.remove_body(id) } -> std::same_as<void>;
+};
+
+// PhysicsForceApplicable: can apply forces/impulses
+template<typename T>
+concept PhysicsForceApplicable = requires(T t, uint64_t id, Vec3f v) {
+    { t.apply_force(id, v) } -> std::same_as<void>;
+    { t.apply_impulse(id, v) } -> std::same_as<void>;
+};
+
+// ============================================================
+// GameObject concepts
+// ============================================================
+
 template<typename T>
 concept GameObjectLike = requires(T t) {
     { t.transform() } -> std::same_as<Transform2D&>;
@@ -42,7 +80,6 @@ concept GameObjectLike = requires(T t) {
     { t.object_type() } -> std::same_as<uint32_t>;
 };
 
-// --- Collider (CppSampleGame Collider2D equivalent) ---
 template<typename T>
 concept ColliderLike = requires(T a, T b) {
     { a.is_hit(b) } -> std::same_as<bool>;
@@ -50,7 +87,10 @@ concept ColliderLike = requires(T a, T b) {
     { a.owner_transform() } -> std::same_as<const Transform2D&>;
 };
 
-// --- Renderer Backend ---
+// ============================================================
+// System backend concepts
+// ============================================================
+
 template<typename T>
 concept RendererBackend = requires(T t) {
     { t.initialize() } -> std::same_as<bool>;
@@ -59,7 +99,6 @@ concept RendererBackend = requires(T t) {
     { t.shutdown() } -> std::same_as<void>;
 };
 
-// --- Input System ---
 template<typename T>
 concept InputBackend = requires(T t, uint32_t key) {
     { t.is_key_down(key) } -> std::same_as<bool>;
@@ -68,7 +107,6 @@ concept InputBackend = requires(T t, uint32_t key) {
     { t.poll_events() } -> std::same_as<void>;
 };
 
-// --- Window ---
 template<typename T>
 concept WindowBackend = requires(T t, uint32_t w, uint32_t h, std::string_view title) {
     { t.create(w, h, title) } -> std::same_as<bool>;
@@ -76,4 +114,14 @@ concept WindowBackend = requires(T t, uint32_t w, uint32_t h, std::string_view t
     { t.poll_events() } -> std::same_as<void>;
     { t.width() } -> std::same_as<uint32_t>;
     { t.height() } -> std::same_as<uint32_t>;
+};
+
+// ============================================================
+// Render pipeline concepts
+// ============================================================
+
+// CommandSubmittable: can submit render commands to a command buffer
+template<typename T>
+concept CommandSubmittable = requires(T t, CommandBuffer& buf) {
+    { t.record_commands(buf) } -> std::same_as<void>;
 };

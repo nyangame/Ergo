@@ -5,18 +5,32 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Options
-option(ERGO_BUILD_SAMPLES "Build sample games" ON)
+option(ERGO_BUILD_SAMPLES "Build sample games" OFF)
 
-# Engine Layer (static library)
+# -------------------------------------------------------
+# System Assembly: engine + system layers (static libs)
+# -------------------------------------------------------
+
+# Engine Layer (core, math, physics, render pipeline, resources)
 add_subdirectory(engine)
 
-# System Layer (static library)
+# System Layer (platform backends: Vulkan, input, window)
 add_subdirectory(system)
 
-# Runtime (executable)
+# -------------------------------------------------------
+# Application Assembly: runtime executable
+# -------------------------------------------------------
+
+# Runtime (main executable that loads game DLLs)
 add_subdirectory(runtime)
 
-# Sample Game (shared library)
+# -------------------------------------------------------
+# Sample Games (purged from default build)
+# -------------------------------------------------------
 if(ERGO_BUILD_SAMPLES)
-    add_subdirectory(samples/shooting)
+    # SampleGame (shooting) has been purged from the default build.
+    # To build samples, set -DERGO_BUILD_SAMPLES=ON
+    if(EXISTS "${CMAKE_SOURCE_DIR}/samples/shooting/CMakeLists.txt")
+        add_subdirectory(samples/shooting)
+    endif()
 endif()
