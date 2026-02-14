@@ -108,3 +108,60 @@ public struct ErgoComponentInfo
     public string NameStr => Marshal.PtrToStringAnsi(Name) ?? "";
     public string TypeNameStr => Marshal.PtrToStringAnsi(TypeName) ?? "";
 }
+
+// ---------------------------------------------------------------------------
+// UI Editor Hierarchy types
+// ---------------------------------------------------------------------------
+
+[StructLayout(LayoutKind.Sequential)]
+public struct ErgoUINodeHandle
+{
+    public ulong Id;
+    public bool IsValid => Id != 0;
+}
+
+public enum ErgoUIScaleMode
+{
+    DotByDot = 0,
+    ScaleWithScreen = 1,
+}
+
+public enum ErgoUIScreenMatchMode
+{
+    MatchWidth = 0,
+    MatchHeight = 1,
+    MatchMinAxis = 2,
+    MatchMaxAxis = 3,
+}
+
+public enum ErgoUINodeType
+{
+    Base = 0,
+    Canvas = 1,
+    Image = 2,
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct ErgoUIRectTransform
+{
+    public ErgoVec2 AnchorMin;
+    public ErgoVec2 AnchorMax;
+    public ErgoVec2 Pivot;
+    public ErgoVec2 Position;
+    public ErgoSize2 SizeDelta;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct ErgoUINodeInfo
+{
+    public ErgoUINodeHandle Handle;
+    public ErgoUINodeHandle Parent;
+    public ErgoUINodeType NodeType;
+    public IntPtr Name;         // const char*
+    public int Depth;
+    public int ChildCount;
+    public int Active;
+    public int Visible;
+
+    public string NameStr => Marshal.PtrToStringAnsi(Name) ?? "";
+}

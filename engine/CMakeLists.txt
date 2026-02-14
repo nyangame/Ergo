@@ -44,6 +44,10 @@ set(ERGO_ENGINE_SOURCES
     # UI
     ui/ui_manager.cpp
     ui/ui_widgets.cpp
+    ui/ui_node.cpp
+    ui/ui_canvas.cpp
+    ui/ui_image_node.cpp
+    ui/ui_hierarchy.cpp
 
     # Debug
     debug/debug_draw.cpp
@@ -74,6 +78,11 @@ target_compile_features(ergo_engine PUBLIC cxx_std_20)
 find_package(Threads REQUIRED)
 target_link_libraries(ergo_engine PUBLIC Threads::Threads)
 
+# Winsock2 (required by net/socket.cpp on Windows)
+if(WIN32)
+    target_link_libraries(ergo_engine PUBLIC ws2_32)
+endif()
+
 # Network configuration
 if(ERGO_ENABLE_NETWORK)
     target_compile_definitions(ergo_engine PUBLIC ERGO_HAS_NETWORK=1)
@@ -87,8 +96,11 @@ if(ERGO_ENABLE_NETWORK)
         )
         target_compile_definitions(ergo_engine PUBLIC ERGO_HAS_POCO=1)
     else()
-        # POSIX socket fallback
+        # Native socket fallback (POSIX / Winsock)
         target_compile_definitions(ergo_engine PUBLIC ERGO_HAS_POCO=0)
+        if(WIN32)
+            target_link_libraries(ergo_engine PUBLIC ws2_32)
+        endif()
     endif()
 else()
     target_compile_definitions(ergo_engine PUBLIC ERGO_HAS_NETWORK=0 ERGO_HAS_POCO=0)

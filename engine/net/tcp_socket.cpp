@@ -129,14 +129,34 @@ uint16_t TcpSocket::remote_port() const {
 
 #else
 // ============================================================
-// POSIX socket backend
+// Native socket backend (POSIX / Winsock)
 // ============================================================
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#pragma comment(lib, "ws2_32.lib")
+#define ERGO_CLOSE_SOCKET closesocket
+#define ERGO_SHUT_RDWR SD_BOTH
+#define MSG_NOSIGNAL 0
+using ergo_ssize_t = ptrdiff_t;
+inline int ergo_socket_errno() { return WSAGetLastError(); }
+inline bool ergo_is_wouldblock(int e) { return e == WSAEWOULDBLOCK; }
+#else
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
 #include <fcntl.h>
+#define ERGO_CLOSE_SOCKET ::close
+#define ERGO_SHUT_RDWR SHUT_RDWR
+using ergo_ssize_t = ssize_t;
+inline int ergo_socket_errno() { return errno; }
+inline bool ergo_is_wouldblock(int e) { return e == EAGAIN || e == EWOULDBLOCK; }
+#endif
 #include <cerrno>
 #include <cstring>
 
@@ -167,15 +187,15 @@ bool TcpSocket::connect(std::string_view host, uint16_t port) {
     std::string host_str(host);
     std::string port_str = std::to_string(port);
     if (::getaddrinfo(host_str.c_str(), port_str.c_str(), &hints, &res) != 0 || !res) {
-        ::close(impl_->fd);
+        ERGO_CLOSE_SOCKET(impl_->fd);
         impl_->fd = -1;
         return false;
     }
 
-    int rc = ::connect(impl_->fd, res->ai_addr, res->ai_addrlen);
+    int rc = ::connect(impl_->fd, res->ai_addr, static_cast<int>(res->ai_addrlen));
     ::freeaddrinfo(res);
     if (rc < 0) {
-        ::close(impl_->fd);
+        ERGO_CLOSE_SOCKET(impl_->fd);
         impl_->fd = -1;
         return false;
     }
@@ -190,7 +210,8 @@ bool TcpSocket::listen(uint16_t port, int backlog) {
     if (impl_->fd < 0) return false;
 
     int opt = 1;
-    ::setsockopt(impl_->fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    ::setsockopt(impl_->fd, SOL_SOCKET, SO_REUSEADDR,
+                 reinterpret_cast<const char*>(&opt), sizeof(opt));
 
     struct sockaddr_in addr{};
     addr.sin_family = AF_INET;
@@ -198,12 +219,12 @@ bool TcpSocket::listen(uint16_t port, int backlog) {
     addr.sin_port = htons(port);
 
     if (::bind(impl_->fd, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) < 0) {
-        ::close(impl_->fd);
+        ERGO_CLOSE_SOCKET(impl_->fd);
         impl_->fd = -1;
         return false;
     }
     if (::listen(impl_->fd, backlog) < 0) {
-        ::close(impl_->fd);
+        ERGO_CLOSE_SOCKET(impl_->fd);
         impl_->fd = -1;
         return false;
     }
@@ -227,7 +248,9 @@ TcpSocket TcpSocket::accept() {
 }
 
 int TcpSocket::send(const uint8_t* data, size_t len) {
-    ssize_t n = ::send(impl_->fd, data, len, MSG_NOSIGNAL);
+    ergo_ssize_t n = ::send(impl_->fd,
+                            reinterpret_cast<const char*>(data),
+                            static_cast<int>(len), MSG_NOSIGNAL);
     if (n < 0) {
         impl_->connected = false;
         return -1;
@@ -236,13 +259,15 @@ int TcpSocket::send(const uint8_t* data, size_t len) {
 }
 
 int TcpSocket::recv(uint8_t* buffer, size_t max_len) {
-    ssize_t n = ::recv(impl_->fd, buffer, max_len, 0);
+    ergo_ssize_t n = ::recv(impl_->fd,
+                            reinterpret_cast<char*>(buffer),
+                            static_cast<int>(max_len), 0);
     if (n == 0) {
         impl_->connected = false;
         return 0;
     }
     if (n < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) return 0;
+        if (ergo_is_wouldblock(ergo_socket_errno())) return 0;
         impl_->connected = false;
         return -1;
     }
@@ -251,26 +276,39 @@ int TcpSocket::recv(uint8_t* buffer, size_t max_len) {
 
 void TcpSocket::set_non_blocking(bool enabled) {
     if (impl_->fd < 0) return;
+#ifdef _WIN32
+    u_long mode = enabled ? 1 : 0;
+    ::ioctlsocket(impl_->fd, FIONBIO, &mode);
+#else
     int flags = ::fcntl(impl_->fd, F_GETFL, 0);
     if (enabled)
         ::fcntl(impl_->fd, F_SETFL, flags | O_NONBLOCK);
     else
         ::fcntl(impl_->fd, F_SETFL, flags & ~O_NONBLOCK);
+#endif
 }
 
 void TcpSocket::set_timeout(int timeout_ms) {
     if (impl_->fd < 0) return;
+#ifdef _WIN32
+    DWORD tv = static_cast<DWORD>(timeout_ms);
+    ::setsockopt(impl_->fd, SOL_SOCKET, SO_RCVTIMEO,
+                 reinterpret_cast<const char*>(&tv), sizeof(tv));
+    ::setsockopt(impl_->fd, SOL_SOCKET, SO_SNDTIMEO,
+                 reinterpret_cast<const char*>(&tv), sizeof(tv));
+#else
     struct timeval tv;
     tv.tv_sec = timeout_ms / 1000;
     tv.tv_usec = (timeout_ms % 1000) * 1000;
     ::setsockopt(impl_->fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     ::setsockopt(impl_->fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+#endif
 }
 
 void TcpSocket::close() {
     if (impl_->fd >= 0) {
-        ::shutdown(impl_->fd, SHUT_RDWR);
-        ::close(impl_->fd);
+        ::shutdown(impl_->fd, ERGO_SHUT_RDWR);
+        ERGO_CLOSE_SOCKET(impl_->fd);
         impl_->fd = -1;
     }
     impl_->connected = false;
