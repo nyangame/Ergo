@@ -15,7 +15,7 @@ endif()
 # Options
 option(ERGO_BUILD_SAMPLES "Build sample games" OFF)
 option(ERGO_BUILD_EDITOR "Build editor native library" OFF)
-option(ERGO_BUILD_TESTS "Build unit tests" OFF)
+option(ERGO_BUILD_TESTS "Build test assembly" ON)
 option(ERGO_ENABLE_NETWORK "Enable network support" ON)
 option(ERGO_FETCH_POCO "Download POCO via FetchContent (requires internet)" OFF)
 
@@ -104,6 +104,14 @@ if(ERGO_BUILD_EDITOR)
 endif()
 
 # -------------------------------------------------------
+# Test Assembly: GUI-independent test executable
+# -------------------------------------------------------
+if(ERGO_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+
+# -------------------------------------------------------
 # Sample Games (purged from default build)
 # -------------------------------------------------------
 if(ERGO_BUILD_SAMPLES)
@@ -112,12 +120,4 @@ if(ERGO_BUILD_SAMPLES)
     if(EXISTS "${CMAKE_SOURCE_DIR}/samples/shooting/CMakeLists.txt")
         add_subdirectory(samples/shooting)
     endif()
-endif()
-
-# -------------------------------------------------------
-# Tests
-# -------------------------------------------------------
-if(ERGO_BUILD_TESTS)
-    enable_testing()
-    add_subdirectory(tests)
 endif()
