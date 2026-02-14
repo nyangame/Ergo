@@ -44,6 +44,10 @@ set(ERGO_ENGINE_SOURCES
     # UI
     ui/ui_manager.cpp
     ui/ui_widgets.cpp
+    ui/ui_node.cpp
+    ui/ui_canvas.cpp
+    ui/ui_image_node.cpp
+    ui/ui_hierarchy.cpp
 
     # Debug
     debug/debug_draw.cpp
