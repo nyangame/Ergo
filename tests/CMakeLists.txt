@@ -10,6 +10,12 @@ add_executable(ergo_tests
     test_core.cpp
 )
 
-target_include_directories(ergo_tests PRIVATE ${CMAKE_SOURCE_DIR})
 target_link_libraries(ergo_tests PRIVATE ergo_engine)
+target_include_directories(ergo_tests PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/tests
+)
 target_compile_features(ergo_tests PRIVATE cxx_std_20)
+
+# Register with CTest
+add_test(NAME ergo_tests COMMAND ergo_tests)

@@ -1,26 +1,33 @@
 #include "system/platform.hpp"
 #include "engine/core/task_system.hpp"
+#include "engine/core/time.hpp"
+#include "engine/core/log.hpp"
 #include "engine/physics/physics_system.hpp"
 #include "engine/physics/rigid_body_world.hpp"
 #include "engine/render/render_pipeline.hpp"
+#include "engine/debug/profiler.hpp"
+#include "engine/core/tween.hpp"
+#include "engine/resource/resource_manager.hpp"
 #include "runtime/engine_context.hpp"
 #include "runtime/dll_loader.hpp"
 #include <chrono>
-#include <cstdio>
 
 int main(int argc, char** argv) {
     // -------------------------------------------------------
     // 1. Platform initialization (System Assembly)
     // -------------------------------------------------------
+    ergo::log::set_level(LogLevel::Info);
+    ERGO_LOG_INFO("Engine", "Ergo Engine starting...");
+
     ergo::PlatformWindow window;
     if (!window.create(800, 600, "Ergo Engine")) {
-        std::fprintf(stderr, "[Ergo] Failed to create window\n");
+        ERGO_LOG_ERROR("Engine", "Failed to create window");
         return 1;
     }
 
     ergo::PlatformRenderer renderer;
     if (!renderer.initialize()) {
-        std::fprintf(stderr, "[Ergo] Failed to initialize renderer\n");
+        ERGO_LOG_ERROR("Engine", "Failed to initialize renderer");
         return 1;
     }
 
@@ -39,6 +46,10 @@ int main(int argc, char** argv) {
     // Task manager
     TaskManager task_mgr;
 
+    // Frame rate limiter
+    FrameRateLimiter fps_limiter;
+    fps_limiter.target_fps = 60.0f;
+
     // -------------------------------------------------------
     // 3. Application Assembly: load game DLL
     // -------------------------------------------------------
@@ -48,8 +59,9 @@ int main(int argc, char** argv) {
     auto game = load_game_dll(dll_path);
     if (game.valid()) {
         game.callbacks->on_init(&engine_api);
+        ERGO_LOG_INFO("Engine", "Game DLL loaded: %s", dll_path);
     } else {
-        std::fprintf(stderr, "[Ergo] Running without game DLL\n");
+        ERGO_LOG_WARN("Engine", "Running without game DLL");
     }
 
     // -------------------------------------------------------
@@ -58,51 +70,71 @@ int main(int argc, char** argv) {
     auto last_time = std::chrono::high_resolution_clock::now();
 
     while (!window.should_close()) {
+        fps_limiter.begin_frame();
+
         auto now = std::chrono::high_resolution_clock::now();
         float dt = std::chrono::duration<float>(now - last_time).count();
         last_time = now;
+
+        // Update global time
+        g_time.tick(dt);
 
         // --- Event processing ---
         window.poll_events();
         input.poll_events();
 
         // --- DESTROY phase: remove dead tasks ---
-        task_mgr.run(RunPhase::Destroy, dt);
+        g_profiler.begin("Destroy");
+        task_mgr.run(RunPhase::Destroy, g_time.delta_time);
+        g_profiler.end();
 
         // --- PHYSICS phase: task physics + 2D collisions + 3D rigid body ---
-        task_mgr.run(RunPhase::Physics, dt);
+        g_profiler.begin("Physics");
+        task_mgr.run(RunPhase::Physics, g_time.delta_time);
         g_physics.run();
-        g_rigid_body_world.step(dt);
+        g_rigid_body_world.step(g_time.delta_time);
+        g_profiler.end();
 
         // --- UPDATE phase: task updates + game update ---
-        task_mgr.run(RunPhase::Update, dt);
+        g_profiler.begin("Update");
+        task_mgr.run(RunPhase::Update, g_time.delta_time);
         if (game.valid()) {
-            game.callbacks->on_update(dt);
+            game.callbacks->on_update(g_time.delta_time);
         }
+        g_tweens.update(g_time.delta_time);
+        g_profiler.end();
 
         // --- DRAW phase: render pipeline ---
+        g_profiler.begin("Draw");
         render_pipeline.begin_frame();
         renderer.begin_frame();
 
         auto* ctx = renderer.context();
-        task_mgr.run(RunPhase::Draw, dt, ctx);
+        task_mgr.run(RunPhase::Draw, g_time.delta_time, ctx);
         if (game.valid()) {
             game.callbacks->on_draw();
         }
 
         render_pipeline.end_frame();
         renderer.end_frame();
+        g_profiler.end();
+
+        // Frame rate limiting
+        fps_limiter.wait();
     }
 
     // -------------------------------------------------------
     // 5. Shutdown
     // -------------------------------------------------------
+    ERGO_LOG_INFO("Engine", "Shutting down... (ran %llu frames)", g_time.frame_count);
     if (game.valid()) {
         game.callbacks->on_shutdown();
     }
     unload_game_dll(game);
+    g_resources.shutdown();
     render_pipeline.shutdown();
     renderer.shutdown();
+    ergo::log::close_file();
 
     return 0;
 }

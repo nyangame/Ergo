@@ -1,0 +1,21 @@
+{
+  "name": "ergo-agents",
+  "version": "0.1.0",
+  "description": "Claude Code SDK agent orchestrator for Ergo game engine",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "orchestrate": "node --import tsx src/orchestrator.ts",
+    "review": "node --import tsx src/orchestrator.ts --mode review",
+    "implement": "node --import tsx src/orchestrator.ts --mode implement",
+    "single": "node --import tsx src/run-single.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-code": "^2.1.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0",
+    "@types/node": "^22.0.0"
+  }
+}

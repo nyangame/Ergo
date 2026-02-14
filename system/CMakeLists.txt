@@ -6,7 +6,9 @@ add_library(ergo_system STATIC
     renderer/vulkan/vk_swapchain.cpp
     input/desktop_input.cpp
     input/touch_input.cpp
+    input/gamepad_input.cpp
     window/desktop_window.cpp
+    audio/audio_engine.cpp
 )
 
 target_link_libraries(ergo_system PUBLIC ergo_engine)

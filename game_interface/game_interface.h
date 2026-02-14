@@ -5,6 +5,11 @@
 extern "C" {
 #endif
 
+// Callback types for network
+typedef void (*ErgoNetMessageCallback)(uint32_t client_id, ErgoNetMessage msg);
+typedef void (*ErgoNetEventCallback)(uint32_t client_id, ErgoNetEvent event);
+typedef void (*ErgoHttpCallback)(ErgoHttpResponse response);
+
 // Engine API provided to the game DLL
 typedef struct {
     // Drawing (replaces CppSampleGame's DrawBox, DrawCircle, etc.)
@@ -20,6 +25,20 @@ typedef struct {
     // Resources
     ErgoTextureHandle (*load_texture)(const char* path);
     void (*unload_texture)(ErgoTextureHandle handle);
+
+    // Network: connection management
+    int (*net_connect)(const char* host, uint16_t port);
+    int (*net_host)(uint16_t port, int max_clients);
+    void (*net_send)(ErgoNetMessage msg, uint32_t client_id);
+    void (*net_poll)(void);
+    void (*net_shutdown)(void);
+    void (*net_set_handler)(uint16_t msg_type, ErgoNetMessageCallback callback);
+    void (*net_set_event_handler)(ErgoNetEventCallback callback);
+
+    // Network: HTTP client
+    ErgoHttpResponse (*http_get)(const char* url);
+    ErgoHttpResponse (*http_post)(const char* url, const char* body,
+                                   const char* content_type);
 } ErgoEngineAPI;
 
 // Callbacks exported by the game DLL

@@ -61,6 +61,15 @@ struct RenderCmd_DrawDebugLine {
     Color color;
 };
 
+// Skinned mesh draw command: mesh with bone animation matrices
+struct RenderCmd_DrawSkinnedMesh {
+    uint64_t mesh_id = 0;
+    Mat4 world_transform;
+    uint64_t material_id = 0;
+    uint32_t bone_count = 0;
+    std::vector<Mat4> bone_matrices;  // final bone transforms for this frame
+};
+
 // SDF/MSDFテキスト描画コマンド (バッチ描画)
 // TextRenderer::build_batches() の出力をレンダーパイプラインに投入する
 struct TextBatchVertex {
@@ -92,6 +101,7 @@ using RenderCommand = std::variant<
     RenderCmd_Clear,
     RenderCmd_SetViewProjection,
     RenderCmd_DrawMesh,
+    RenderCmd_DrawSkinnedMesh,
     RenderCmd_DrawRect,
     RenderCmd_DrawCircle,
     RenderCmd_DrawSprite,
