@@ -89,6 +89,16 @@ concept ColliderLike = requires(T a, T b) {
 };
 
 // ============================================================
+// Behaviour concepts (composable units of object logic)
+// ============================================================
+
+template<typename T>
+concept BehaviourLike = Startable<T> && Updatable<T> && Releasable<T> &&
+    requires {
+        { T::type_name() } -> std::convertible_to<std::string_view>;
+    };
+
+// ============================================================
 // System backend concepts
 // ============================================================
 
