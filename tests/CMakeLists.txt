@@ -8,6 +8,12 @@ add_executable(ergo_tests
     test_math.cpp
     test_physics.cpp
     test_core.cpp
+    test_gameplay.cpp
+    test_physics_extended.cpp
+    test_render.cpp
+    test_ui_shader.cpp
+    test_animation_debug.cpp
+    test_ecs_task.cpp
 )
 
 target_link_libraries(ergo_tests PRIVATE ergo_engine)
