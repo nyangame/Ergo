@@ -8,20 +8,9 @@
 #include <functional>
 #include "../concepts.hpp"
 
-struct RenderContext;
 struct GameObject;
 
-// ============================================================
-// Behaviour concept: defines a composable unit of object logic
-// ============================================================
-
-template<typename T>
-concept BehaviourLike = requires(T t, float dt) {
-    { t.start() } -> std::same_as<void>;
-    { t.update(dt) } -> std::same_as<void>;
-    { t.release() } -> std::same_as<void>;
-    { T::type_name() } -> std::convertible_to<std::string_view>;
-};
+// BehaviourLike concept is defined in concepts.hpp (included above)
 
 // ============================================================
 // IBehaviour: type-erased interface (same pattern as ITask)
