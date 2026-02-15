@@ -55,6 +55,9 @@ set(ERGO_ENGINE_SOURCES
     # Network (base sockets from core)
     net/socket.cpp
 
+    # Behaviour
+    core/behaviour/behaviour_tree.cpp
+
     # ECS
     ecs/world.cpp
 )
