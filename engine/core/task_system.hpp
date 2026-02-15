@@ -4,6 +4,8 @@
 #include <array>
 #include <memory>
 #include <functional>
+#include <string>
+#include <string_view>
 #include "concepts.hpp"
 
 struct RenderContext; // Forward declaration
@@ -36,6 +38,10 @@ class TaskManager {
         virtual void release() = 0;
         virtual bool has_physics() const = 0;
         virtual bool has_draw() const = 0;
+
+        // Threading introspection
+        virtual ThreadingPolicy threading_policy() const = 0;
+        virtual bool is_thread_aware() const = 0;
     };
 
     // TaskModel: concept-constrained bridge from concrete type to ITask
@@ -68,6 +74,17 @@ class TaskManager {
         bool has_draw() const override {
             return Drawable<T, RenderContext>;
         }
+
+        ThreadingPolicy threading_policy() const override {
+            if constexpr (ThreadAware<T>)
+                return T::threading_policy();
+            else
+                return ThreadingPolicy::MainThread;
+        }
+
+        bool is_thread_aware() const override {
+            return ThreadAware<T>;
+        }
     };
 
     struct TaskEntry {
@@ -96,4 +113,24 @@ public:
     // Query
     size_t task_count() const;
     size_t task_count(TaskLayer layer) const;
+
+    // Threading introspection: per-task info for visualization
+    struct TaskThreadingInfo {
+        uint64_t id;
+        TaskLayer layer;
+        ThreadingPolicy policy;
+        bool thread_aware;  // true if type explicitly declares its policy
+    };
+
+    // Returns threading info for all active tasks
+    std::vector<TaskThreadingInfo> threading_report() const;
+
+    // Summary counts per policy
+    struct ThreadingSummary {
+        uint32_t main_thread = 0;
+        uint32_t any_thread = 0;
+        uint32_t parallel = 0;
+        uint32_t total = 0;
+    };
+    ThreadingSummary threading_summary() const;
 };

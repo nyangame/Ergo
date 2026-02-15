@@ -1,10 +1,13 @@
 #pragma once
 #include "archetype.hpp"
+#include "../core/job_system.hpp"
 #include <unordered_map>
 #include <functional>
 #include <typeindex>
 #include <set>
 #include <algorithm>
+#include <array>
+#include <utility>
 
 class World {
 public:
@@ -97,6 +100,53 @@ public:
             }
         }
     }
+
+    // Parallel query: iterate entities using the global JobSystem.
+    // Each archetype's entities are split into chunks and processed
+    // on worker threads. The callback receives (entity_id, components...).
+    // chunk_size should be tuned for cache line alignment (e.g., 64 entities
+    // keeps ~4KB per component column chunk in L1 for 64-byte components).
+    template<typename... Ts, typename Func>
+    void parallel_each(Func&& fn, uint32_t chunk_size = 64) {
+        parallel_each_impl<Ts...>(std::index_sequence_for<Ts...>{},
+                                   std::forward<Func>(fn), chunk_size);
+    }
+
+private:
+    template<typename... Ts, size_t... Is, typename Func>
+    void parallel_each_impl(std::index_sequence<Is...>, Func&& fn, uint32_t chunk_size) {
+        std::set<ComponentId> required = {component_id<Ts>()...};
+
+        for (auto& [arch_id, arch] : archetypes_) {
+            bool has_all = true;
+            for (ComponentId cid : required) {
+                if (!arch.get_column(cid)) { has_all = false; break; }
+            }
+            if (!has_all) continue;
+
+            uint32_t count = static_cast<uint32_t>(arch.entity_count());
+            if (count == 0) continue;
+
+            // Cache raw byte pointers per component column.
+            // Column data is contiguous (SOA layout) so sequential
+            // access within a chunk is cache-line friendly.
+            std::array<uint8_t*, sizeof...(Ts)> col_data = {
+                arch.get_column(component_id<Ts>())->data.data()...
+            };
+
+            const uint64_t* entity_ids = arch.entities.data();
+
+            g_job_system.parallel_for(0, count, chunk_size,
+                [entity_ids, &fn, col_data](uint32_t begin, uint32_t end) {
+                    for (uint32_t i = begin; i < end; ++i) {
+                        fn(entity_ids[i],
+                           *reinterpret_cast<Ts*>(col_data[Is] + i * sizeof(Ts))...);
+                    }
+                });
+        }
+    }
+
+public:
 
     size_t entity_count() const { return entity_info_.size(); }
     size_t archetype_count() const { return archetypes_.size(); }
