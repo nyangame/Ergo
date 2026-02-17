@@ -23,6 +23,7 @@ add_executable(ergo_demos
     demo_profiler.cpp
     demo_text.cpp
     demo_animation.cpp
+    demo_particle_emitter_component.cpp
 )
 
 target_link_libraries(ergo_demos PRIVATE ergo_engine)

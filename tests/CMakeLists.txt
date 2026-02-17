@@ -14,6 +14,7 @@ add_executable(ergo_tests
     test_ui_shader.cpp
     test_animation_debug.cpp
     test_ecs_task.cpp
+    test_particle_emitter_component.cpp
 )
 
 target_link_libraries(ergo_tests PRIVATE ergo_engine)

@@ -12,6 +12,7 @@ void register_render_tests(TestRunner& runner);
 void register_ui_shader_tests(TestRunner& runner);
 void register_animation_debug_tests(TestRunner& runner);
 void register_ecs_task_tests(TestRunner& runner);
+void register_particle_emitter_component_tests(TestRunner& runner);
 
 int main() {
     TestRunner runner;
@@ -25,6 +26,7 @@ int main() {
     register_ui_shader_tests(runner);
     register_animation_debug_tests(runner);
     register_ecs_task_tests(runner);
+    register_particle_emitter_component_tests(runner);
 
     return runner.run();
 }
