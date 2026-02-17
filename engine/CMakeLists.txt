@@ -1,6 +1,7 @@
 set(ERGO_ENGINE_SOURCES
     # Core
     core/task_system.cpp
+    core/job_system.cpp
     core/log.cpp
     core/scene_manager.cpp
     core/input_map.cpp

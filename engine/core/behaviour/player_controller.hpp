@@ -41,8 +41,9 @@ struct PlayerController {
     // --- Internal state ---
     Vec2f velocity;
 
-    // --- BehaviourLike interface ---
+    // --- BehaviourLike + ThreadAware interface ---
     static constexpr std::string_view type_name() { return "PlayerController"; }
+    static constexpr ThreadingPolicy threading_policy() { return ThreadingPolicy::MainThread; }
 
     void start() {
         velocity = Vec2f::zero();

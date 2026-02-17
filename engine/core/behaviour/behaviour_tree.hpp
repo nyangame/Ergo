@@ -174,6 +174,7 @@ struct BehaviourTree {
     BTStatus last_status = BTStatus::Failure;
 
     static constexpr std::string_view type_name() { return "BehaviourTree"; }
+    static constexpr ThreadingPolicy threading_policy() { return ThreadingPolicy::AnyThread; }
 
     void start() {
         last_status = BTStatus::Failure;

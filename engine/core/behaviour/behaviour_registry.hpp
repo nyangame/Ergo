@@ -17,6 +17,8 @@ public:
     struct Entry {
         std::string name;
         std::string category;
+        ThreadingPolicy policy = ThreadingPolicy::MainThread;
+        bool thread_aware = false;
         std::function<std::unique_ptr<IBehaviour>()> factory;
     };
 
@@ -25,6 +27,10 @@ public:
         Entry entry;
         entry.name = std::string(T::type_name());
         entry.category = std::string(category);
+        if constexpr (ThreadAware<T>) {
+            entry.policy = T::threading_policy();
+            entry.thread_aware = true;
+        }
         entry.factory = []() -> std::unique_ptr<IBehaviour> {
             return std::make_unique<BehaviourModel<T>>();
         };

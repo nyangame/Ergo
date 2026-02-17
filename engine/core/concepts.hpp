@@ -14,6 +14,22 @@ struct RenderContext;
 struct CommandBuffer;
 
 // ============================================================
+// Threading policy: annotates how a type can be executed
+// ============================================================
+
+enum class ThreadingPolicy : uint8_t {
+    MainThread,    // Must run on main thread (input, UI, render state, etc.)
+    AnyThread,     // Safe to call from any single thread (no shared mutable state)
+    Parallel,      // Designed for parallel execution across worker threads (data-oriented)
+};
+
+// ThreadAware: a type that declares its threading policy
+template<typename T>
+concept ThreadAware = requires {
+    { T::threading_policy() } -> std::same_as<ThreadingPolicy>;
+};
+
+// ============================================================
 // Lifecycle concepts
 // ============================================================
 

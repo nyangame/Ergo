@@ -26,6 +26,10 @@ struct IBehaviour {
     virtual std::string_view type_name() const = 0;
     virtual std::type_index type_id() const = 0;
     virtual void* raw_ptr() = 0;
+
+    // Threading introspection
+    virtual ThreadingPolicy threading_policy() const = 0;
+    virtual bool is_thread_aware() const = 0;
 };
 
 // ============================================================
@@ -63,6 +67,17 @@ struct BehaviourModel final : IBehaviour {
     }
 
     void* raw_ptr() override { return &behaviour; }
+
+    ThreadingPolicy threading_policy() const override {
+        if constexpr (ThreadAware<T>)
+            return T::threading_policy();
+        else
+            return ThreadingPolicy::MainThread;  // safe default
+    }
+
+    bool is_thread_aware() const override {
+        return ThreadAware<T>;
+    }
 };
 
 // ============================================================
@@ -157,5 +172,34 @@ public:
     void for_each(std::function<void(const IBehaviour&)> fn) const {
         for (auto& b : behaviours_)
             fn(*b);
+    }
+
+    // Threading introspection for this holder's behaviours
+    struct BehaviourThreadingInfo {
+        std::string_view name;
+        ThreadingPolicy policy;
+        bool thread_aware;
+    };
+
+    std::vector<BehaviourThreadingInfo> threading_report() const {
+        std::vector<BehaviourThreadingInfo> report;
+        report.reserve(behaviours_.size());
+        for (const auto& b : behaviours_) {
+            report.push_back({
+                b->type_name(),
+                b->threading_policy(),
+                b->is_thread_aware()
+            });
+        }
+        return report;
+    }
+
+    // Check if all behaviours in this holder can run off the main thread
+    bool all_parallelizable() const {
+        for (const auto& b : behaviours_) {
+            if (b->threading_policy() == ThreadingPolicy::MainThread)
+                return false;
+        }
+        return !behaviours_.empty();
     }
 };

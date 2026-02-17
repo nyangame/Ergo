@@ -89,3 +89,36 @@ size_t TaskManager::task_count(TaskLayer layer) const {
     if (idx >= layers_.size()) return 0;
     return layers_[idx].size();
 }
+
+std::vector<TaskManager::TaskThreadingInfo> TaskManager::threading_report() const {
+    std::vector<TaskThreadingInfo> report;
+    for (size_t li = 0; li < layers_.size(); ++li) {
+        auto layer = static_cast<TaskLayer>(li);
+        for (const auto& entry : layers_[li]) {
+            if (entry.pending_destroy) continue;
+            report.push_back({
+                entry.id,
+                layer,
+                entry.impl->threading_policy(),
+                entry.impl->is_thread_aware()
+            });
+        }
+    }
+    return report;
+}
+
+TaskManager::ThreadingSummary TaskManager::threading_summary() const {
+    ThreadingSummary summary;
+    for (const auto& layer : layers_) {
+        for (const auto& entry : layer) {
+            if (entry.pending_destroy) continue;
+            ++summary.total;
+            switch (entry.impl->threading_policy()) {
+                case ThreadingPolicy::MainThread: ++summary.main_thread; break;
+                case ThreadingPolicy::AnyThread:  ++summary.any_thread;  break;
+                case ThreadingPolicy::Parallel:   ++summary.parallel;    break;
+            }
+        }
+    }
+    return summary;
+}

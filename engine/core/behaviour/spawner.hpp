@@ -46,8 +46,9 @@ struct Spawner {
     bool active_ = false;
     uint32_t seed_ = 12345;
 
-    // --- BehaviourLike interface ---
+    // --- BehaviourLike + ThreadAware interface ---
     static constexpr std::string_view type_name() { return "Spawner"; }
+    static constexpr ThreadingPolicy threading_policy() { return ThreadingPolicy::MainThread; }
 
     void start() {
         timer_ = 0.0f;

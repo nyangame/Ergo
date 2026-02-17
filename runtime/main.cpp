@@ -1,5 +1,6 @@
 #include "system/platform.hpp"
 #include "engine/core/task_system.hpp"
+#include "engine/core/job_system.hpp"
 #include "engine/core/time.hpp"
 #include "engine/core/log.hpp"
 #include "engine/physics/physics_system.hpp"
@@ -38,6 +39,10 @@ int main(int argc, char** argv) {
     // -------------------------------------------------------
     // g_physics (2D) is an inline global in physics_system.hpp
     // g_rigid_body_world (3D) is an inline global in rigid_body_world.hpp
+
+    // Job system for data-parallel work (ECS, physics, etc.)
+    g_job_system.initialize(0);  // 0 = auto-detect thread count
+    ERGO_LOG_INFO("Engine", "JobSystem initialized with %u workers", g_job_system.worker_count());
 
     // Render pipeline with multi-CPU worker threads
     RenderPipeline render_pipeline;
@@ -133,6 +138,7 @@ int main(int argc, char** argv) {
     unload_game_dll(game);
     g_resources.shutdown();
     render_pipeline.shutdown();
+    g_job_system.shutdown();
     renderer.shutdown();
     ergo::log::close_file();
 
