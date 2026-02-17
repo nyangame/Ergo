@@ -61,6 +61,10 @@ set(ERGO_ENGINE_SOURCES
 
     # ECS
     ecs/world.cpp
+
+    # Plugin system
+    plugin/plugin_registry.cpp
+    plugin/core_plugins.cpp
 )
 
 # Network module (POCO-backed, optional)

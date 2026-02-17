@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(ergo_editor_native SHARED
     editor_api.cpp
     editor_renderer.cpp
+    plugin_api.cpp
 )
 
 target_include_directories(ergo_editor_native PRIVATE

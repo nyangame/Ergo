@@ -115,6 +115,25 @@ concept BehaviourLike = Startable<T> && Updatable<T> && Releasable<T> &&
     };
 
 // ============================================================
+// Plugin concepts (unified runtime + editor format)
+//
+// A PluginLike type is a BehaviourLike type that additionally
+// provides a static PluginDescriptor, enabling the editor to
+// reflect its properties and display appropriate UI.
+//
+// Core components and user-defined components both satisfy this
+// concept, ensuring a uniform treatment across the system.
+// ============================================================
+
+struct PluginDescriptor;  // defined in engine/plugin/plugin_descriptor.hpp
+
+template<typename T>
+concept PluginLike = BehaviourLike<T> &&
+    requires {
+        { T::plugin_descriptor() } -> std::same_as<const PluginDescriptor&>;
+    };
+
+// ============================================================
 // System backend concepts
 // ============================================================
 

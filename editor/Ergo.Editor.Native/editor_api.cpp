@@ -6,6 +6,7 @@
 #include "engine/ui/ui_hierarchy.hpp"
 #include "engine/resource/resource_manager.hpp"
 #include "engine/resource/image_loader.hpp"
+#include "engine/plugin/plugin_registry.hpp"
 
 #include <unordered_map>
 #include <string>
@@ -29,9 +30,19 @@ struct EditorState {
     std::string temp_name;
 
     std::mutex mutex;
+
+    bool plugins_registered = false;
 };
 
 EditorState g_editor;
+
+// Accessor functions used by plugin_api.cpp
+std::mutex& editor_mutex() { return g_editor.mutex; }
+
+GameObject* find_editor_object(uint64_t id) {
+    auto it = g_editor.objects.find(id);
+    return (it != g_editor.objects.end()) ? &it->second : nullptr;
+}
 
 } // anonymous namespace
 
@@ -43,6 +54,13 @@ extern "C" {
 
 int ergo_editor_init(void) {
     std::lock_guard lock(g_editor.mutex);
+
+    // Register core plugins (once)
+    if (!g_editor.plugins_registered) {
+        g_plugin_registry.register_core_plugins();
+        g_editor.plugins_registered = true;
+    }
+
     if (g_editor.renderer.is_initialized()) return 1;
     return g_editor.renderer.initialize() ? 1 : 0;
 }

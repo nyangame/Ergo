@@ -16,6 +16,8 @@ struct GameObject;
 // IBehaviour: type-erased interface (same pattern as ITask)
 // ============================================================
 
+struct PluginDescriptor;  // defined in engine/plugin/plugin_descriptor.hpp
+
 struct IBehaviour {
     virtual ~IBehaviour() = default;
     virtual void start() = 0;
@@ -30,6 +32,10 @@ struct IBehaviour {
     // Threading introspection
     virtual ThreadingPolicy threading_policy() const = 0;
     virtual bool is_thread_aware() const = 0;
+
+    // Plugin introspection
+    virtual bool has_plugin_descriptor() const = 0;
+    virtual const PluginDescriptor* plugin_descriptor() const = 0;
 };
 
 // ============================================================
@@ -77,6 +83,17 @@ struct BehaviourModel final : IBehaviour {
 
     bool is_thread_aware() const override {
         return ThreadAware<T>;
+    }
+
+    bool has_plugin_descriptor() const override {
+        return PluginLike<T>;
+    }
+
+    const PluginDescriptor* plugin_descriptor() const override {
+        if constexpr (PluginLike<T>)
+            return &T::plugin_descriptor();
+        else
+            return nullptr;
     }
 };
 
