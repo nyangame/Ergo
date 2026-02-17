@@ -11,7 +11,9 @@
 #include "engine/resource/resource_manager.hpp"
 #include "runtime/engine_context.hpp"
 #include "runtime/dll_loader.hpp"
+#include "runtime/plugin_loader.hpp"
 #include <chrono>
+#include <cstring>
 
 int main(int argc, char** argv) {
     // -------------------------------------------------------
@@ -56,7 +58,7 @@ int main(int argc, char** argv) {
     fps_limiter.target_fps = 60.0f;
 
     // -------------------------------------------------------
-    // 3. Application Assembly: load game DLL
+    // 3. Application Assembly: load game DLL + plugins
     // -------------------------------------------------------
     auto engine_api = build_engine_api(renderer, input);
 
@@ -68,6 +70,18 @@ int main(int argc, char** argv) {
     } else {
         ERGO_LOG_WARN("Engine", "Running without game DLL");
     }
+
+    // Load plugin DLLs (arguments after --plugin)
+    PluginManager plugin_mgr;
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--plugin") == 0 && i + 1 < argc) {
+            uint64_t pid = plugin_mgr.load(argv[++i]);
+            if (pid) {
+                ERGO_LOG_INFO("Engine", "Plugin loaded (id=%llu)", pid);
+            }
+        }
+    }
+    plugin_mgr.init_all(&engine_api);
 
     // -------------------------------------------------------
     // 4. Main loop
@@ -100,12 +114,13 @@ int main(int argc, char** argv) {
         g_rigid_body_world.step(g_time.delta_time);
         g_profiler.end();
 
-        // --- UPDATE phase: task updates + game update ---
+        // --- UPDATE phase: task updates + game update + plugins ---
         g_profiler.begin("Update");
         task_mgr.run(RunPhase::Update, g_time.delta_time);
         if (game.valid()) {
             game.callbacks->on_update(g_time.delta_time);
         }
+        plugin_mgr.update_all(g_time.delta_time);
         g_tweens.update(g_time.delta_time);
         g_profiler.end();
 
@@ -119,6 +134,7 @@ int main(int argc, char** argv) {
         if (game.valid()) {
             game.callbacks->on_draw();
         }
+        plugin_mgr.draw_all();
 
         render_pipeline.end_frame();
         renderer.end_frame();
@@ -132,6 +148,7 @@ int main(int argc, char** argv) {
     // 5. Shutdown
     // -------------------------------------------------------
     ERGO_LOG_INFO("Engine", "Shutting down... (ran %llu frames)", g_time.frame_count);
+    plugin_mgr.unload_all();
     if (game.valid()) {
         game.callbacks->on_shutdown();
     }

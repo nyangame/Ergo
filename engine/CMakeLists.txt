@@ -75,6 +75,11 @@ endif()
 
 add_library(ergo_engine STATIC ${ERGO_ENGINE_SOURCES})
 
+# When building the editor (shared lib), static libs must be position-independent
+if(ERGO_BUILD_EDITOR)
+    set_target_properties(ergo_engine PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()
+
 target_include_directories(ergo_engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_compile_features(ergo_engine PUBLIC cxx_std_20)
 

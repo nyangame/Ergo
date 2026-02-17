@@ -16,6 +16,7 @@ extern "C" {
 // ---------------------------------------------------------------------------
 typedef struct { uint64_t id; } ErgoRenderTargetHandle;
 typedef struct { uint64_t id; } ErgoGameObjectHandle;
+typedef struct { uint64_t id; } ErgoPluginHandle;
 
 // ---------------------------------------------------------------------------
 // 3D types (C-compatible mirrors of engine math types)
@@ -260,6 +261,39 @@ ERGO_EDITOR_API void ergo_ui_reparent(
 
 ERGO_EDITOR_API void ergo_ui_set_sibling_index(
     ErgoUINodeHandle node, int32_t index);
+
+// ===========================================================================
+// Plugin Management API
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// Plugin info descriptor (returned to managed side)
+// ---------------------------------------------------------------------------
+typedef struct {
+    ErgoPluginHandle handle;
+    const char*      name;
+    const char*      version;
+    const char*      description;
+    const char*      author;
+    const char*      dll_path;
+} ErgoEditorPluginInfo;
+
+// ---------------------------------------------------------------------------
+// Load / unload
+// ---------------------------------------------------------------------------
+ERGO_EDITOR_API ErgoPluginHandle ergo_editor_load_plugin(
+    const char* dll_path);
+
+ERGO_EDITOR_API int ergo_editor_unload_plugin(
+    ErgoPluginHandle handle);
+
+// ---------------------------------------------------------------------------
+// Query
+// ---------------------------------------------------------------------------
+ERGO_EDITOR_API uint32_t ergo_editor_get_plugin_count(void);
+
+ERGO_EDITOR_API uint32_t ergo_editor_get_plugins(
+    ErgoEditorPluginInfo* out_infos, uint32_t max_count);
 
 #ifdef __cplusplus
 }

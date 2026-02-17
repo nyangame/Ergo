@@ -2,6 +2,7 @@ add_executable(ergo_runtime
     main.cpp
     engine_context.cpp
     dll_loader.cpp
+    plugin_loader.cpp
 )
 
 target_link_libraries(ergo_runtime PRIVATE ergo_system)

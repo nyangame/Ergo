@@ -6,11 +6,21 @@
 #include "engine/ui/ui_hierarchy.hpp"
 #include "engine/resource/resource_manager.hpp"
 #include "engine/resource/image_loader.hpp"
+#include "game_interface/plugin_interface.h"
 
 #include <unordered_map>
+#include <vector>
 #include <string>
+#include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <mutex>
+
+#ifdef _WIN32
+    #include <windows.h>
+#else
+    #include <dlfcn.h>
+#endif
 
 // ============================================================
 // Internal editor state
@@ -18,12 +28,61 @@
 
 namespace {
 
+// ---------------------------------------------------------------------------
+// Loaded plugin entry (editor-side)
+// ---------------------------------------------------------------------------
+struct EditorPlugin {
+    uint64_t             id       = 0;
+    void*                handle   = nullptr;
+    ErgoPluginInfo*      info     = nullptr;
+    ErgoPluginCallbacks* callbacks = nullptr;
+    std::string          path;
+
+    bool valid() const { return handle && info && callbacks; }
+};
+
+// ---------------------------------------------------------------------------
+// DLL helpers (duplicated from runtime so editor can load independently)
+// ---------------------------------------------------------------------------
+static void* editor_open_dll(const char* path) {
+#ifdef _WIN32
+    return LoadLibraryA(path);
+#else
+    return dlopen(path, RTLD_LAZY);
+#endif
+}
+
+static void editor_close_dll(void* h) {
+    if (!h) return;
+#ifdef _WIN32
+    FreeLibrary(static_cast<HMODULE>(h));
+#else
+    dlclose(h);
+#endif
+}
+
+template<typename Fn>
+static Fn editor_resolve(void* h, const char* sym) {
+#ifdef _WIN32
+    return reinterpret_cast<Fn>(GetProcAddress(static_cast<HMODULE>(h), sym));
+#else
+    return reinterpret_cast<Fn>(dlsym(h, sym));
+#endif
+}
+
+// ---------------------------------------------------------------------------
+// Editor state
+// ---------------------------------------------------------------------------
 struct EditorState {
     EditorRenderer renderer;
 
     // Scene objects managed by the editor
     uint64_t next_object_id = 1;
     std::unordered_map<uint64_t, GameObject> objects;
+
+    // Plugin management
+    uint64_t next_plugin_id = 1;
+    std::vector<EditorPlugin> plugins;
 
     // Temporary buffer for string returns (kept alive until next call)
     std::string temp_name;
@@ -49,12 +108,28 @@ int ergo_editor_init(void) {
 
 void ergo_editor_shutdown(void) {
     std::lock_guard lock(g_editor.mutex);
+
+    // Unload plugins in reverse order
+    for (auto it = g_editor.plugins.rbegin(); it != g_editor.plugins.rend(); ++it) {
+        if (it->callbacks && it->callbacks->on_shutdown) {
+            it->callbacks->on_shutdown();
+        }
+        editor_close_dll(it->handle);
+    }
+    g_editor.plugins.clear();
+
     g_editor.renderer.shutdown();
     g_editor.objects.clear();
 }
 
 void ergo_editor_tick(float dt) {
     std::lock_guard lock(g_editor.mutex);
+    // Tick plugins
+    for (auto& p : g_editor.plugins) {
+        if (p.callbacks && p.callbacks->on_update) {
+            p.callbacks->on_update(dt);
+        }
+    }
     // TODO: step physics, update tasks, etc.
     (void)dt;
 }
@@ -470,6 +545,99 @@ void ergo_ui_set_sibling_index(ErgoUINodeHandle node, int32_t index) {
     std::lock_guard lock(g_editor.mutex);
     auto* n = g_ui_hierarchy.find_by_id(node.id);
     if (n) n->set_sibling_index(index);
+}
+
+// ============================================================
+// Plugin Management
+// ============================================================
+
+ErgoPluginHandle ergo_editor_load_plugin(const char* dll_path) {
+    if (!dll_path || dll_path[0] == '\0') return {0};
+
+    std::lock_guard lock(g_editor.mutex);
+
+    void* handle = editor_open_dll(dll_path);
+    if (!handle) {
+        std::fprintf(stderr, "[Editor] Failed to load plugin DLL: %s\n", dll_path);
+        return {0};
+    }
+
+    auto get_info = editor_resolve<ErgoPluginInfo*(*)()>(
+        handle, "ergo_get_plugin_info");
+    auto get_callbacks = editor_resolve<ErgoPluginCallbacks*(*)()>(
+        handle, "ergo_get_plugin_callbacks");
+
+    if (!get_info || !get_callbacks) {
+        std::fprintf(stderr,
+            "[Editor] Plugin missing required exports: %s\n", dll_path);
+        editor_close_dll(handle);
+        return {0};
+    }
+
+    ErgoPluginInfo* info = get_info();
+    ErgoPluginCallbacks* callbacks = get_callbacks();
+    if (!info || !callbacks) {
+        std::fprintf(stderr,
+            "[Editor] Plugin returned null info/callbacks: %s\n", dll_path);
+        editor_close_dll(handle);
+        return {0};
+    }
+
+    uint64_t id = g_editor.next_plugin_id++;
+    g_editor.plugins.push_back({id, handle, info, callbacks, std::string(dll_path)});
+
+    // Call on_init (no engine API in editor context - pass nullptr)
+    if (callbacks->on_init) {
+        callbacks->on_init(nullptr);
+    }
+
+    std::fprintf(stderr, "[Editor] Plugin loaded: %s v%s (id=%llu)\n",
+                 info->name ? info->name : "(unnamed)",
+                 info->version ? info->version : "?",
+                 static_cast<unsigned long long>(id));
+
+    return {id};
+}
+
+int ergo_editor_unload_plugin(ErgoPluginHandle handle) {
+    std::lock_guard lock(g_editor.mutex);
+
+    auto it = std::find_if(g_editor.plugins.begin(), g_editor.plugins.end(),
+                           [&](const EditorPlugin& p) { return p.id == handle.id; });
+    if (it == g_editor.plugins.end()) return 0;
+
+    if (it->callbacks && it->callbacks->on_shutdown) {
+        it->callbacks->on_shutdown();
+    }
+    editor_close_dll(it->handle);
+    g_editor.plugins.erase(it);
+    return 1;
+}
+
+uint32_t ergo_editor_get_plugin_count(void) {
+    std::lock_guard lock(g_editor.mutex);
+    return static_cast<uint32_t>(g_editor.plugins.size());
+}
+
+uint32_t ergo_editor_get_plugins(
+    ErgoEditorPluginInfo* out_infos, uint32_t max_count)
+{
+    std::lock_guard lock(g_editor.mutex);
+    uint32_t count = 0;
+
+    for (const auto& p : g_editor.plugins) {
+        if (count >= max_count) break;
+
+        auto& out = out_infos[count];
+        out.handle      = {p.id};
+        out.name        = p.info ? p.info->name : "";
+        out.version     = p.info ? p.info->version : "";
+        out.description = p.info ? p.info->description : "";
+        out.author      = p.info ? p.info->author : "";
+        out.dll_path    = p.path.c_str();
+        count++;
+    }
+    return count;
 }
 
 } // extern "C"

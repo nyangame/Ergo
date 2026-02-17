@@ -11,6 +11,10 @@ add_library(ergo_system STATIC
     audio/audio_engine.cpp
 )
 
+if(ERGO_BUILD_EDITOR)
+    set_target_properties(ergo_system PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()
+
 target_link_libraries(ergo_system PUBLIC ergo_engine)
 target_include_directories(ergo_system PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
